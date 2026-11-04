@@ -1,0 +1,27 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Xcode
+apple/*.xcodeproj/
+apple/build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+.build/
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+artifacts/
+
+# Secrets (local OAuth client IDs etc.)
+apple/MuurMusic/Config/Secrets.xcconfig
+windows/src/MuurMusic.App/appsettings.Local.json
+
+# Python
+__pycache__/
