@@ -445,8 +445,9 @@ public final class DownloadManager: ObservableObject {
 
     private func begin(_ item: DownloadItem) {
         starting.insert(item.id)
-        let task = Task { [weak self] in
-            await self?.run(item)
+        let task = Task<Void, Never> { [weak self] in
+            guard let self else { return }
+            await self.run(item)
         }
         foregroundTasks[item.id] = task
     }

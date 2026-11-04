@@ -129,7 +129,7 @@ final class StreamTaskByteStream: NSObject, FTPByteStream, URLSessionDelegate, @
     }
 
     func send(_ data: Data) async throws {
-        let task = active
+        let task: URLSessionStreamTask = active
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             task.write(data, timeout: 60) { error in
                 if let error {
@@ -142,7 +142,7 @@ final class StreamTaskByteStream: NSObject, FTPByteStream, URLSessionDelegate, @
     }
 
     func receive(maximum: Int) async throws -> Data? {
-        let task = active
+        let task: URLSessionStreamTask = active
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Data?, Error>) in
             task.readData(ofMinLength: 1, maxLength: maximum, timeout: 120) { data, atEOF, error in
                 if let data, !data.isEmpty {

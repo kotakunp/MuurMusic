@@ -22,7 +22,9 @@ jobs:
         run: xcodebuild -version && swift --version
       - name: Build and test MuurKit
         working-directory: apple/Packages/MuurKit
-        run: swift test 2>&1 | tee ../../../muurkit.log
+        run: |
+          set -o pipefail
+          swift test 2>&1 | tee ../../../muurkit.log
       - name: Upload log
         if: always()
         uses: actions/upload-artifact@v4

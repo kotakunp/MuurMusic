@@ -36,10 +36,13 @@ public struct S3Signer: Sendable {
 
     /// Canonical query string from decoded name/value pairs.
     public static func canonicalQuery(_ items: [(String, String)]) -> String {
-        items.map { (PathUtils.rfc3986Encode($0.0), PathUtils.rfc3986Encode($0.1)) }
-            .sorted { $0.0 == $1.0 ? $0.1 < $1.1 : $0.0 < $1.0 }
-            .map { "\($0.0)=\($0.1)" }
-            .joined(separator: "&")
+        let encoded: [(String, String)] = items.map { item in
+            (PathUtils.rfc3986Encode(item.0), PathUtils.rfc3986Encode(item.1))
+        }
+        let sorted = encoded.sorted { (a: (String, String), b: (String, String)) -> Bool in
+            a.0 == b.0 ? a.1 < b.1 : a.0 < b.0
+        }
+        return sorted.map { pair in pair.0 + "=" + pair.1 }.joined(separator: "&")
     }
 
     static func queryItems(of url: URL) -> [(String, String)] {
