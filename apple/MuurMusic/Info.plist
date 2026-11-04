@@ -24,6 +24,9 @@
 	<string>public.app-category.music</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- App Group shared with the widgets (Signing.xcconfig). -->
+	<key>MuurAppGroup</key>
+	<string>$(MUUR_APP_GROUP)</string>
 
 	<!-- OAuth client IDs (see Config.xcconfig / Secrets.xcconfig and API.md). -->
 	<key>MUUR_DROPBOX_CLIENT_ID</key>

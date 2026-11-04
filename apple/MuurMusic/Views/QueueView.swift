@@ -6,6 +6,7 @@ import MuurAudio
 struct QueueView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
+    @State private var editMode: EditMode = .inactive
 
     var body: some View {
         Group {
@@ -22,8 +23,8 @@ struct QueueView: View {
                             QueueRow(item: current, isCurrent: true)
                         }
                     }
-                    Section("Up Next") {
-                        ForEach(player.queue.upNext()) { item in
+                    Section {
+                        ForEach(player.queue.following) { item in
                             QueueRow(item: item, isCurrent: false)
                                 .onTapGesture {
                                     player.playItem(id: item.id)
@@ -31,27 +32,36 @@ struct QueueView: View {
                         }
                         .onMove(perform: move)
                         .onDelete(perform: delete)
+                    } header: {
+                        upNextHeader
                     }
                 }
                 #if os(iOS)
                 .listStyle(.plain)
                 #endif
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            player.clearQueue()
-                        } label: {
-                            Label("Clear", systemImage: "trash")
-                        }
-                    }
-                    #if os(iOS)
-                    ToolbarItem(placement: .primaryAction) {
-                        EditButton()
-                    }
-                    #endif
-                }
+                .muurEditMode($editMode)
             }
         }
+    }
+
+    // Inline rather than toolbar items: Now Playing hosts this view without a navigation bar.
+    private var upNextHeader: some View {
+        HStack {
+            Text("Up Next")
+            Spacer()
+            #if os(iOS)
+            Button(editMode.isEditing ? "Done" : "Edit") {
+                withAnimation { editMode = editMode.isEditing ? .inactive : .active }
+            }
+            .disabled(player.queue.following.isEmpty && !editMode.isEditing)
+            #endif
+            Button("Clear", role: .destructive) {
+                editMode = .inactive
+                player.clearQueue()
+            }
+        }
+        .font(.subheadline)
+        .textCase(nil)
     }
 
     private func move(from source: IndexSet, to destination: Int) {
@@ -59,7 +69,7 @@ struct QueueView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        let items = player.queue.upNext()
+        let items = player.queue.following
         let ids = Set(offsets.compactMap { items.indices.contains($0) ? items[$0].id : nil })
         player.removeFromQueue(ids: ids)
     }

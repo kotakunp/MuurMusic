@@ -42,6 +42,8 @@ struct TrackRowView: View {
     var subtitleOverride: String? = nil
     var showsFavorite = true
     var index: Int? = nil
+    /// Custom swipe actions replace a List's built-in delete, so editable lists pass their removal here.
+    var onRemove: (() -> Void)? = nil
 
     @State private var sheetRequest: TrackSheetRequest?
 
@@ -93,6 +95,12 @@ struct TrackRowView: View {
             .tint(MuurTheme.accentViolet)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if let onRemove {
+                Button(role: .destructive, action: onRemove) {
+                    Label("Remove", systemImage: "minus.circle")
+                }
+                .tint(MuurTheme.danger)
+            }
             Button {
                 model.toggleFavorite(track)
             } label: {

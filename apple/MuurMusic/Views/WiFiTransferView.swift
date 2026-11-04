@@ -19,8 +19,10 @@ struct WiFiTransferView: View {
         Form {
             Section {
                 Toggle("Server Running", isOn: runningBinding)
-                Stepper("Port: \(settings.wifiTransferPort)", value: portBinding, in: 1024...65535)
-                    .disabled(isRunning)
+                Stepper(value: portBinding, in: 1024...65535) {
+                    Text(verbatim: "Port: \(settings.wifiTransferPort)")
+                }
+                .disabled(isRunning)
             }
 
             if isRunning && !urls.isEmpty {
@@ -55,16 +57,28 @@ struct WiFiTransferView: View {
                 }
             }
 
-            Section("Security") {
-                Toggle("Require PIN", isOn: requirePINBinding)
-                if settings.wifiTransferRequirePIN {
-                    SecureField("PIN", text: pinBinding)
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                    Text("Ask the cat nicely — or enter this PIN on the upload page.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            Section {
+                // The server captures these when it starts, so they are locked while it runs.
+                Group {
+                    Toggle("Require PIN", isOn: requirePINBinding)
+                    if settings.wifiTransferRequirePIN {
+                        // Visible on purpose: the user has to read it out or type it on the computer.
+                        TextField("PIN", text: pinBinding)
+                            .font(.body.monospaced())
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            #endif
+                        Text("Ask the cat nicely — or enter this PIN on the upload page.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .disabled(isRunning)
+            } header: {
+                Text("Security")
+            } footer: {
+                if isRunning {
+                    Text("Stop the server to change the port or PIN.")
                 }
             }
 

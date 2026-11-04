@@ -109,20 +109,7 @@ struct GroupDetailView: View {
                         Text("\(group.trackCount) songs • \(group.albumCount) albums • \(MuurFormat.longDuration(group.duration))")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        HStack(spacing: 12) {
-                            Button {
-                                model.play(tracks)
-                            } label: {
-                                Label("Play", systemImage: "play.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            Button {
-                                model.play(tracks, shuffle: true)
-                            } label: {
-                                Label("Shuffle", systemImage: "shuffle")
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                        PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
                     }
                     Spacer(minLength: 0)
                 }

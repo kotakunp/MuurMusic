@@ -167,6 +167,8 @@ public final class MuurSettings: ObservableObject {
         wifiTransferPIN = string(.wifiTransferPIN) ?? String(format: "%04d", Int.random(in: 0...9999))
         resumeOnLaunch = bool(.resumeOnLaunch, true)
         showHiResBadges = bool(.showHiResBadges, true)
+        // didSet does not run in init; the transfer server reads the PIN straight from defaults.
+        if string(.wifiTransferPIN) == nil { save(.wifiTransferPIN, wifiTransferPIN) }
     }
 
     private func save(_ key: Key, _ value: Any?) {

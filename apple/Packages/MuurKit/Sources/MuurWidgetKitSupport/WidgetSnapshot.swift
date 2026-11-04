@@ -2,8 +2,15 @@ import Foundation
 
 /// Shared constants for the App Group container used by the app and its widgets.
 public enum MuurAppGroup {
-    /// The App Group identifier shared by the app, widgets and CarPlay scene.
-    public static let identifier = "group.app.muur.music"
+    /// The App Group identifier shared by the app, widgets and CarPlay scene. Builds set it per signing
+    /// team through the `MuurAppGroup` Info.plist key; tests and tools without one use the release group.
+    public static let identifier: String = {
+        if let value = Bundle.main.object(forInfoDictionaryKey: "MuurAppGroup") as? String,
+           !value.isEmpty, !value.hasPrefix("$(") {
+            return value
+        }
+        return "group.app.muur.music"
+    }()
 
     /// Returns the App Group container URL, or `nil` when the entitlement is missing.
     public static func containerURL(identifier: String = MuurAppGroup.identifier) -> URL? {

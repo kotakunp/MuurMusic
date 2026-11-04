@@ -41,19 +41,20 @@ Checked on a Mac (Xcode 27.2, Swift 6.4):
 - `swift build` and `swift test` in `Packages/MuurKit` pass (38 tests).
 - The **MuurMusic** scheme (app + widgets) builds for `generic/platform=iOS Simulator`
   and `generic/platform=macOS` with the exact CI commands above.
-- iOS Simulator: the app launches, scans FLAC / ALAC / WAV files dropped into its
-  Documents folder (format badges correct), plays them and advances through the
-  queue; the mini player and Now Playing screen work.
+- iOS Simulator: library scanning (including folders added while the app runs),
+  gapless album playback, queue edit / reorder / delete, synced sidecar LRC
+  lyrics, EQ presets, loudness and DSP chain, sleep timer, playlist M3U import /
+  export / edit, tag editing (written to the file), Wi-Fi transfer uploads with
+  and without a PIN, and the level meters.
+- iPhone 15 Pro (free Personal Team, `MUUR_PERSONAL_TEAM = YES`): the app installs
+  and launches.
 - macOS: the app launches and stays up (unsigned build, so no sandbox or app group).
 
 Not tested yet:
 
-1. Run on an iPhone: remove the CarPlay key from
-   `MuurMusic/MuurMusic-iOS.entitlements` (see below) and pick your team under Signing.
-   The Now Playing volume slider (`MPVolumeView`) only appears on a device.
-2. Smoke-test on device / signed Mac build: gapless album, EQ preset, lock-screen
-   controls, widgets, Wi-Fi transfer upload, network sources and SSDP/Bonjour
-   discovery (needs the multicast entitlement on macOS).
+1. Widgets on a device (they need a second App ID; see "Signing" below).
+2. On device / signed Mac build: lock-screen controls, network sources, SSDP /
+   Bonjour discovery (needs the multicast entitlement), CarPlay.
 
 ## Secrets (optional cloud sources)
 
@@ -73,13 +74,31 @@ Google additionally needs its reversed client ID URL scheme; set
 `MUUR_GOOGLE_CLIENT_ID` and the scheme is derived automatically
 (`MUUR_GOOGLE_URL_SCHEME` in Config.xcconfig).
 
-## CarPlay entitlement
+## Signing
 
-The repo ships `MuurMusic/MuurMusic-iOS.entitlements` **with** the
-`com.apple.developer.carplay-audio` entitlement, which requires Apple's
-CarPlay approval to code-sign. For local development or CI without approval,
-remove (or comment out) that key — everything else keeps working; the CarPlay
-scene simply never activates. The CarPlay code itself compiles either way.
+`Signing.xcconfig` (applied to every target) holds the bundle ID, App Group and
+entitlement switches. To run on your own device, override them in a git-ignored
+`Signing.local.xcconfig`:
+
+```sh
+cp apple/Signing.local.xcconfig.example apple/Signing.local.xcconfig
+# set DEVELOPMENT_TEAM, MUUR_BUNDLE_ID and the switches below
+cd apple && xcodegen generate
+```
+
+| Setting | Effect |
+| --- | --- |
+| `MUUR_BUNDLE_ID` | App bundle ID; the widgets use `$(MUUR_BUNDLE_ID).widgets`. Use your own ID for personal builds. |
+| `MUUR_APP_GROUP` | Shared app/widget container, default `group.$(MUUR_BUNDLE_ID)`. Read at runtime from Info.plist (`MuurAppGroup`). |
+| `MUUR_CARPLAY` | `YES` signs with `MuurMusic-iOS-CarPlay.entitlements`. Needs Apple's CarPlay audio approval on the profile. Default `NO`. |
+| `MUUR_PERSONAL_TEAM` | `YES` signs with `MuurMusic-iOS-Personal.entitlements` (App Group only) for free Personal Teams, which cannot sign Multicast Networking or CarPlay. SSDP discovery is then unavailable. |
+
+Simulator builds always use the App Group-only entitlements. The CarPlay code
+compiles either way; without the entitlement the CarPlay scene never activates.
+
+Free Personal Teams can register at most 10 App IDs per 7 days, and the app
+plus widgets need two. If you hit the limit, build without the widget extension
+or wait for the limit to reset.
 
 ## macOS sandbox
 

@@ -40,13 +40,17 @@ public final class PlaybackController: ObservableObject {
     public let audioSession = AudioSessionManager()
     #endif
 
-    @Published public private(set) var state: PlaybackState = .stopped
+    @Published public private(set) var state: PlaybackState = .stopped {
+        didSet { updateMeterPublishing() }
+    }
     @Published public private(set) var queue = PlaybackQueue()
     /// Seconds into the current track (CUE window relative).
     @Published public private(set) var position: Double = 0
     @Published public private(set) var duration: Double = 0
     @Published public private(set) var isCrossfading = false
-    @Published public private(set) var output: PlaybackOutput = .local
+    @Published public private(set) var output: PlaybackOutput = .local {
+        didSet { updateMeterPublishing() }
+    }
     @Published public private(set) var sleepTimer: SleepTimerMode = .off
     @Published public private(set) var sleepTimerEndsAt: Date?
     @Published public private(set) var lastError: String?
@@ -178,6 +182,10 @@ public final class PlaybackController: ObservableObject {
         try? AudioOutputDevices.setNominalSampleRate(target, of: device.id)
     }
     #endif
+
+    private func updateMeterPublishing() {
+        meters.setPublishing(state == .playing && output == .local)
+    }
 
     private func applyVolume() {
         #if os(macOS)
@@ -556,7 +564,7 @@ public final class PlaybackController: ObservableObject {
 
     /// Enqueues the next track into the same engine for gapless playback when configured.
     private func maybeEnqueueGaplessNext() {
-        guard settings.gapless, settings.crossfadeSeconds <= 0, queue.repeatMode != .one,
+        guard settings.gapless, settings.crossfadeSeconds <= 0, queue.repeatMode != .one, sleepTimer != .endOfTrack,
               let engine = active, engine.queueIsEmpty,
               let next = queue.upNext(limit: 1).first else { return }
         let key = next.track.libraryKey
@@ -580,7 +588,14 @@ public final class PlaybackController: ObservableObject {
         finishTrackForHistory(skipped: false)
         if sleepTimer == .endOfTrack {
             sleepTimer = .off
-            performSleepStop()
+            sleepTimerEndsAt = nil
+            // The track already finished, so pausing would leave an idle engine running. Stop and line up
+            // the next track so Play continues the queue.
+            if queue.repeatMode != .one { queue.advance() }
+            enqueuedGaplessKey = nil
+            position = 0
+            duration = currentTrack?.duration ?? 0
+            settleStopped()
             return
         }
         if queue.repeatMode == .one {
@@ -588,11 +603,9 @@ public final class PlaybackController: ObservableObject {
             return
         }
         guard queue.advance() else {
-            state = .stopped
-            stopPositionTimer()
-            updateNowPlaying()
-            publishWidgetSnapshot()
-            scheduleQueueSave()
+            // Play after the queue ends restarts the last track instead of resuming at its end.
+            position = 0
+            settleStopped()
             return
         }
         if let key = enqueuedGaplessKey, queue.currentTrack?.libraryKey == key, case .local = output {
@@ -607,6 +620,16 @@ public final class PlaybackController: ObservableObject {
             return
         }
         startCurrent(at: 0)
+    }
+
+    private func settleStopped() {
+        state = .stopped
+        // An idle running engine keeps rendering (ring buffer underruns) and holds the output.
+        engines.forEach { $0.stop() }
+        stopPositionTimer()
+        updateNowPlaying()
+        publishWidgetSnapshot()
+        scheduleQueueSave()
     }
 
     private func finishTrackForHistory(skipped: Bool) {
@@ -643,6 +666,7 @@ public final class PlaybackController: ObservableObject {
                 // Rendering of the last decoder finished; trackEndedNaturally already advanced the queue.
                 if queue.currentTrack == nil || queue.nextItem == nil {
                     state = .stopped
+                    engines.forEach { $0.stop() }
                     stopPositionTimer()
                 }
             }

@@ -38,7 +38,15 @@ public final class FolderMonitor: @unchecked Sendable {
 
     fileprivate func signal() {
         pendingWork?.cancel()
-        let work = DispatchWorkItem { [handler] in handler() }
+        let work = DispatchWorkItem { [weak self, handler] in
+            #if !os(macOS)
+            // Directory sources only cover folders that existed at start; re-enumerate so
+            // subfolders created since then are watched too.
+            self?.stopSources()
+            self?.startOnQueue()
+            #endif
+            handler()
+        }
         pendingWork = work
         queue.asyncAfter(deadline: .now() + debounce, execute: work)
     }
@@ -99,6 +107,10 @@ public final class FolderMonitor: @unchecked Sendable {
 
     private func stopOnQueue() {
         pendingWork?.cancel()
+        stopSources()
+    }
+
+    private func stopSources() {
         for source in sources { source.cancel() }
         sources.removeAll()
     }

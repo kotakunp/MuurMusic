@@ -251,8 +251,15 @@ struct PlaylistsView: View {
         guard let id = playlist.id else { return }
         Task {
             do {
-                let data = try await model.environment.playlists.export(id: id, format: format, fileURI: nil)
                 let name = PathUtils.sanitizeFileName(playlist.name) + "." + format.fileExtension
+                #if os(iOS)
+                // Sandbox paths change on reinstall and mean nothing to other apps; write paths relative to
+                // Documents so the file round-trips when saved there (Files app / Wi-Fi transfer).
+                let fileURI: String? = SourceURI.file(model.environment.paths.documents.appendingPathComponent(name))
+                #else
+                let fileURI: String? = nil
+                #endif
+                let data = try await model.environment.playlists.export(id: id, format: format, fileURI: fileURI)
                 sharedFile = try SharedFile.write(data: data, fileName: name)
             } catch {
                 model.showError(error)

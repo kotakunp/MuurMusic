@@ -85,6 +85,13 @@ public struct PlaybackQueue: Codable, Sendable, Equatable {
         return limit > 0 ? Array(mapped.prefix(limit)) : mapped
     }
 
+    /// Items after the current one in play order, without the repeat wrap-around that `upNext` adds.
+    /// This is the list `moveInPlayOrder` indexes into, so editable queue UIs must show exactly this.
+    public var following: [QueueItem] {
+        guard position >= 0, position + 1 < order.count else { return [] }
+        return order[(position + 1)...].map { items[$0] }
+    }
+
     /// Moves to the next item in play order. Returns false when the queue is exhausted
     /// (repeat `.off` at the last item).
     @discardableResult

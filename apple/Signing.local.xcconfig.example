@@ -1,0 +1,16 @@
+// Copy to Signing.local.xcconfig (git-ignored) to sign with your own team.
+// Then run `xcodegen generate` again. See apple/BUILD.md.
+
+// Your team ID (Xcode > Settings > Accounts, or `security find-identity -v -p codesigning`).
+DEVELOPMENT_TEAM = ABCDE12345
+
+// Bundle IDs are unique across all Apple teams, and signing with a team
+// registers them to it. Use your own ID for personal builds so app.muur.music
+// stays free for the release team.
+MUUR_BUNDLE_ID = app.muur.music.dev.yourname
+
+// YES only if your provisioning profile has Apple's CarPlay audio entitlement.
+MUUR_CARPLAY = NO
+
+// YES for a free Personal Team (no Multicast Networking or CarPlay).
+MUUR_PERSONAL_TEAM = NO

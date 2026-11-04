@@ -4,16 +4,11 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.app.muur.music</string>
+		<string>$(MUUR_APP_GROUP)</string>
 	</array>
 	<!-- SSDP / Bonjour discovery of DLNA & NAS devices. -->
 	<key>com.apple.developer.networking.multicast</key>
 	<true/>
-	<!-- CarPlay audio app. This entitlement requires Apple's CarPlay capability
-	     on the provisioning profile. It compiles and runs in CI without it
-	     (CI builds with CODE_SIGNING_ALLOWED=NO). For personal/free accounts,
-	     DELETE these two lines before signing — see apple/BUILD.md. -->
-	<key>com.apple.developer.carplay-audio</key>
-	<true/>
+	<!-- CarPlay lives in MuurMusic-iOS-CarPlay.entitlements (MUUR_CARPLAY = YES). -->
 </dict>
 </plist>

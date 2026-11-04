@@ -134,20 +134,7 @@ struct AlbumDetailView: View {
                         Text(detailsLine)
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        HStack(spacing: 12) {
-                            Button {
-                                model.play(tracks)
-                            } label: {
-                                Label("Play", systemImage: "play.fill")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            Button {
-                                model.play(tracks, shuffle: true)
-                            } label: {
-                                Label("Shuffle", systemImage: "shuffle")
-                            }
-                            .buttonStyle(.bordered)
-                        }
+                        PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
                         .padding(.top, 4)
                     }
                     Spacer(minLength: 0)

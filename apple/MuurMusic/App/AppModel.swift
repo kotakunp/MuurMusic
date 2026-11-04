@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import SwiftUI
 import MuurCore
 import MuurAudio
@@ -103,6 +104,8 @@ final class AppModel: ObservableObject {
     // Recent searches
     @Published private(set) var recentSearches: [String] = []
 
+    private var settingsForwarding: AnyCancellable?
+
     init() {
         let booted: MuurEnvironment
         if let environment = try? MuurEnvironment.bootstrap() {
@@ -122,6 +125,10 @@ final class AppModel: ObservableObject {
             section = firstSection
         }
         AppModel.shared = self
+        // Views read settings through `model.settings`, so they only redraw if the model re-publishes.
+        settingsForwarding = booted.settings.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
         booted.scanner.$isScanning.assign(to: &$isScanning)
         booted.scanner.$progress.assign(to: &$scanProgress)
         observe()

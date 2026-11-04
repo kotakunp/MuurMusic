@@ -1,0 +1,29 @@
+// Signing and identity settings, applied to every target (project level).
+//
+// Defaults are for the release identity. To build for your own device with a
+// different team (including a free Personal Team), copy
+// Signing.local.xcconfig.example to Signing.local.xcconfig (git-ignored) and
+// override the values there. See apple/BUILD.md.
+
+// App bundle ID; the widget extension appends ".widgets".
+MUUR_BUNDLE_ID = app.muur.music
+// App Group shared by the app and the widgets. Read at runtime from Info.plist
+// (MuurAppGroup), so changing it here is enough.
+MUUR_APP_GROUP = group.$(MUUR_BUNDLE_ID)
+
+// CarPlay audio needs Apple's approval on the provisioning profile.
+// YES signs the iOS app with MuurMusic-iOS-CarPlay.entitlements.
+MUUR_CARPLAY = NO
+// Free Personal Teams cannot sign Multicast Networking or CarPlay. YES signs the
+// iOS app with only the App Group (MuurMusic-iOS-Personal.entitlements); SSDP
+// discovery is then unavailable and DLNA servers are added by URL.
+MUUR_PERSONAL_TEAM = NO
+
+// iOS entitlements file, picked by MUUR_PERSONAL_TEAM and MUUR_CARPLAY.
+MUUR_IOS_ENTITLEMENTS_NO_NO = MuurMusic/MuurMusic-iOS.entitlements
+MUUR_IOS_ENTITLEMENTS_NO_YES = MuurMusic/MuurMusic-iOS-CarPlay.entitlements
+MUUR_IOS_ENTITLEMENTS_YES_NO = MuurMusic/MuurMusic-iOS-Personal.entitlements
+MUUR_IOS_ENTITLEMENTS_YES_YES = MuurMusic/MuurMusic-iOS-Personal.entitlements
+MUUR_IOS_ENTITLEMENTS = $(MUUR_IOS_ENTITLEMENTS_$(MUUR_PERSONAL_TEAM)_$(MUUR_CARPLAY))
+
+#include? "Signing.local.xcconfig"

@@ -27,6 +27,7 @@ windows/scripts-shot.ps1
 
 # Secrets (local OAuth client IDs etc.)
 apple/Secrets.xcconfig
+apple/Signing.local.xcconfig
 apple/MuurMusic/Config/Secrets.xcconfig
 windows/src/MuurMusic.App/appsettings.Local.json
 

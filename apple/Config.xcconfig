@@ -11,8 +11,6 @@
 // A missing key simply makes the matching cloud source report
 // "not configured" in the UI. CI builds without any secrets.
 
-#include? "Secrets.xcconfig"
-
 MUUR_DROPBOX_CLIENT_ID =
 MUUR_GOOGLE_CLIENT_ID =
 MUUR_ONEDRIVE_CLIENT_ID =
@@ -24,3 +22,6 @@ MUUR_PCLOUD_CLIENT_ID =
 // as a URL scheme in Info.plist. Derived from MUUR_GOOGLE_CLIENT_ID by hand:
 // paste the reversed id here when you configure Google Drive.
 MUUR_GOOGLE_URL_SCHEME =
+
+// Last, so values in Secrets.xcconfig override the empty defaults above.
+#include? "Secrets.xcconfig"

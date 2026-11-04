@@ -27,7 +27,7 @@
 	</array>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.app.muur.music</string>
+		<string>$(MUUR_APP_GROUP)</string>
 	</array>
 </dict>
 </plist>

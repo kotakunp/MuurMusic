@@ -16,6 +16,12 @@ struct PlaylistDetailView: View {
     private var playlist: Playlist? { loaded?.playlist }
     private var tracks: [Track] { loaded?.tracks ?? [] }
 
+    #if os(iOS)
+    private let editLabel = "Edit"
+    #else
+    private let editLabel = "Reorder"
+    #endif
+
     var body: some View {
         Group {
             if let playlist {
@@ -40,13 +46,10 @@ struct PlaylistDetailView: View {
                 }
             } else {
                 ToolbarItem(placement: .primaryAction) {
-                    #if os(iOS)
-                    EditButton()
-                    #else
-                    Button(editMode.isEditing ? "Done" : "Reorder") {
-                        editMode = editMode.isEditing ? .inactive : .active
+                    // Not EditButton: it drives the toolbar's edit mode, not the List's `editMode` binding.
+                    Button(editMode.isEditing ? "Done" : editLabel) {
+                        withAnimation { editMode = editMode.isEditing ? .inactive : .active }
                     }
-                    #endif
                 }
             }
         }
@@ -70,20 +73,7 @@ struct PlaylistDetailView: View {
                     Text("\(tracks.count) songs • \(MuurFormat.longDuration(tracks.reduce(0) { $0 + $1.duration }))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    HStack(spacing: 12) {
-                        Button {
-                            model.play(tracks)
-                        } label: {
-                            Label("Play", systemImage: "play.fill")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        Button {
-                            model.play(tracks, shuffle: true)
-                        } label: {
-                            Label("Shuffle", systemImage: "shuffle")
-                        }
-                        .buttonStyle(.bordered)
-                    }
+                    PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
@@ -92,7 +82,7 @@ struct PlaylistDetailView: View {
 
             Section {
                 ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
-                    TrackRowView(track: track)
+                    TrackRowView(track: track, onRemove: playlist.isSmart ? nil : { delete(at: IndexSet(integer: index)) })
                         .onTapGesture {
                             model.play(tracks, startIndex: index)
                         }

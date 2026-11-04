@@ -100,28 +100,22 @@ struct TagEditorView: View {
         }
 
         Section("Tags") {
-            TextField("Title", text: $title)
-            TextField("Artist", text: $artist)
-            TextField("Album", text: $album)
-            TextField("Album Artist", text: $albumArtist)
-            TextField("Genre", text: $genre)
-            TextField("Composer", text: $composer)
+            TagField(title: "Title", text: $title)
+            TagField(title: "Artist", text: $artist)
+            TagField(title: "Album", text: $album)
+            TagField(title: "Album Artist", text: $albumArtist)
+            TagField(title: "Genre", text: $genre)
+            TagField(title: "Composer", text: $composer)
         }
 
         Section("Numbers") {
-            TextField("Year", text: $yearText)
+            TagField(title: "Year", text: $yearText)
                 #if os(iOS)
                 .keyboardType(.numberPad)
                 #endif
-            HStack {
-                TextField("Track #", text: $trackNumberText)
-                TextField("of", text: $trackTotalText)
-            }
-            HStack {
-                TextField("Disc #", text: $discNumberText)
-                TextField("of", text: $discTotalText)
-            }
-            TextField("BPM", text: $bpmText)
+            NumberPairField(title: "Track", number: $trackNumberText, total: $trackTotalText)
+            NumberPairField(title: "Disc", number: $discNumberText, total: $discTotalText)
+            TagField(title: "BPM", text: $bpmText)
                 #if os(iOS)
                 .keyboardType(.numberPad)
                 #endif
@@ -172,12 +166,12 @@ struct TagEditorView: View {
     private var batchForm: some View {
         Group {
             Section("Tags (empty fields stay unchanged)") {
-                TextField("Artist", text: $batchArtist)
-                TextField("Album", text: $batchAlbum)
-                TextField("Album Artist", text: $batchAlbumArtist)
-                TextField("Genre", text: $batchGenre)
-                TextField("Composer", text: $batchComposer)
-                TextField("Year", text: $batchYearText)
+                TagField(title: "Artist", text: $batchArtist)
+                TagField(title: "Album", text: $batchAlbum)
+                TagField(title: "Album Artist", text: $batchAlbumArtist)
+                TagField(title: "Genre", text: $batchGenre)
+                TagField(title: "Composer", text: $batchComposer)
+                TagField(title: "Year", text: $batchYearText)
                     #if os(iOS)
                     .keyboardType(.numberPad)
                     #endif
@@ -264,6 +258,47 @@ struct TagEditorView: View {
                 model.showError(error)
                 isSaving = false
             }
+        }
+    }
+}
+
+/// iOS forms show a text field's title only as a placeholder, which disappears once the field has a value.
+private struct TagField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        #if os(iOS)
+        LabeledContent(title) {
+            TextField(title, text: $text)
+                .multilineTextAlignment(.trailing)
+        }
+        #else
+        TextField(title, text: $text)
+        #endif
+    }
+}
+
+/// "Track 3 of 12" style pair of number fields.
+private struct NumberPairField: View {
+    let title: String
+    @Binding var number: String
+    @Binding var total: String
+
+    var body: some View {
+        LabeledContent(title) {
+            HStack(spacing: 6) {
+                TextField("#", text: $number)
+                    .multilineTextAlignment(.trailing)
+                Text("of")
+                    .foregroundStyle(.secondary)
+                TextField("Total", text: $total)
+                    .frame(maxWidth: 60)
+            }
+            #if os(iOS)
+            .keyboardType(.numberPad)
+            #endif
+            .labelsHidden()
         }
     }
 }

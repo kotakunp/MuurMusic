@@ -58,10 +58,11 @@ struct RootView: View {
     private var iOSRoot: some View {
         TabView(selection: $model.tab) {
             ForEach(visibleTabs, id: \.self) { tab in
+                // The inset goes on the stack, not the root view, so pushed screens keep the mini player.
                 NavigationStack {
                     sectionView(AppSection(tab) ?? .songs)
-                        .withMiniPlayer()
                 }
+                .withMiniPlayer()
                 .tabItem {
                     let section = AppSection(tab) ?? .songs
                     Label(section.title, systemImage: section.systemImage)
@@ -70,8 +71,8 @@ struct RootView: View {
             }
             NavigationStack(path: $model.morePath) {
                 MoreView(overflow: overflowTabs)
-                    .withMiniPlayer()
             }
+            .withMiniPlayer()
             .tabItem { Label("More", systemImage: "ellipsis") }
             .tag(HomeTab.more)
         }
@@ -93,8 +94,8 @@ struct RootView: View {
         } detail: {
             NavigationStack {
                 sectionView(model.section ?? .songs)
-                    .withMiniPlayer()
             }
+            .withMiniPlayer()
         }
         .frame(minWidth: 860, minHeight: 540)
         .onChange(of: model.nowPlayingWindowRequest) { _, _ in

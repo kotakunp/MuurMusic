@@ -11,21 +11,9 @@ struct ArtworkImage: View {
     @State private var image: UXImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uxImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image("DefaultArtwork")
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .task(id: artworkKey) { await load() }
-        .accessibilityHidden(true)
+        ArtworkFill(image: image, cornerRadius: cornerRadius)
+            .task(id: artworkKey) { await load() }
+            .accessibilityHidden(true)
     }
 
     private func load() async {
@@ -56,21 +44,9 @@ struct RemoteArtworkImage: View {
     @State private var image: UXImage?
 
     var body: some View {
-        Group {
-            if let image {
-                Image(uxImage: image)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                Image("DefaultArtwork")
-                    .resizable()
-                    .scaledToFill()
-            }
-        }
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .task(id: url) { await load() }
-        .accessibilityHidden(true)
+        ArtworkFill(image: image, cornerRadius: cornerRadius)
+            .task(id: url) { await load() }
+            .accessibilityHidden(true)
     }
 
     private func load() async {
@@ -86,5 +62,30 @@ struct RemoteArtworkImage: View {
         } catch {
             image = nil
         }
+    }
+}
+
+/// A square slot filled edge to edge by the artwork (or the DefaultArtwork cat).
+/// The square comes first so non-square covers are cropped to it instead of spilling
+/// past the frame the caller sets.
+private struct ArtworkFill: View {
+    let image: UXImage?
+    let cornerRadius: CGFloat
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            .overlay {
+                if let image {
+                    Image(uxImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image("DefaultArtwork")
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }

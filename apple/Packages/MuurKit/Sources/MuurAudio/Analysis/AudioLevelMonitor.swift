@@ -110,6 +110,24 @@ public final class AudioLevelMonitor: ObservableObject {
         spectrum = []
     }
 
+    /// Starts or stops publishing from `tapBuffer` when something else (the playback engine) owns the tap.
+    /// Stopping resets the meters so a paused player does not show frozen levels.
+    public func setPublishing(_ enabled: Bool) {
+        if enabled {
+            guard timer == nil else { return }
+            isActive = true
+            startTimer()
+        } else {
+            guard timer != nil else { return }
+            timer?.invalidate()
+            timer = nil
+            isActive = false
+            smoothLevels = [-60, -60]
+            levels = smoothLevels
+            spectrum = []
+        }
+    }
+
     private func restartTimerIfNeeded() {
         guard timer != nil else { return }
         startTimer()
