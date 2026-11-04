@@ -83,6 +83,7 @@ struct RootView: View {
             Tab("Search", systemImage: "magnifyingglass", value: HomeTab.search, role: .search) {
                 NavigationStack {
                     SearchView()
+                        .muurTopLevelTitle()
                 }
             }
         }
@@ -115,6 +116,7 @@ struct RootView: View {
 
             NavigationStack {
                 SearchView()
+                    .muurTopLevelTitle()
             }
             .withMiniPlayer(namespace: playerNamespace)
             .tabItem { Label("Search", systemImage: "magnifyingglass") }
@@ -184,6 +186,18 @@ extension View {
     }
 }
 
+extension View {
+    /// Large bold title on the same row as the toolbar buttons, instead of a second row below them.
+    @ViewBuilder
+    func muurTopLevelTitle() -> some View {
+        #if os(iOS)
+        toolbarTitleDisplayMode(.inlineLarge)
+        #else
+        self
+        #endif
+    }
+}
+
 enum NowPlayingTransition {
     static let sourceID = "now-playing"
 }
@@ -193,6 +207,12 @@ struct RootSectionDestination: View {
     let section: AppSection
 
     var body: some View {
+        content
+            .muurTopLevelTitle()
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch section {
         case .songs: SongsView()
         case .albums: AlbumsView()

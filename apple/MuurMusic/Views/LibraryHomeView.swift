@@ -30,6 +30,7 @@ struct LibraryHomeView: View {
                         }
                         .padding(.vertical, 3)
                     }
+                    .listRowSeparator(section == Self.sections.first ? .hidden : .automatic, edges: .top)
                 }
             }
 
@@ -56,6 +57,7 @@ struct LibraryHomeView: View {
         }
         .listStyle(.plain)
         .navigationTitle("Library")
+        .muurTopLevelTitle()
         .navigationDestination(for: AppSection.self) { section in
             RootSectionDestination(section: section)
         }

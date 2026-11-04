@@ -34,6 +34,7 @@ struct PlaylistsView: View {
                             PlaylistRow(playlist: playlist)
                         }
                         .contextMenu { playlistMenu(playlist) }
+                        .listRowSeparator(playlist.id == model.playlists.first?.id ? .hidden : .automatic, edges: .top)
                     }
                     .onMove(perform: move)
                 }

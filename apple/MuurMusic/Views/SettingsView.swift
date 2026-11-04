@@ -114,7 +114,7 @@ struct SettingsView: View {
             NavigationLink {
                 TabOrderView()
             } label: {
-                Label("Customize Tab Bar", systemImage: "rectangle.3.group")
+                Label("Customize Tabs", systemImage: "rectangle.3.group")
             }
         }
     }
