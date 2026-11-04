@@ -36,6 +36,8 @@ windows\src\MuurMusic.App\bin\Release\net10.0-windows10.0.19041.0\win-x64\MuurMu
 dotnet test windows\MuurMusic.sln -c Release
 ```
 
+The decode smoke tests generate their WAV/FLAC fixtures with `ffmpeg.exe`, so it must be on `PATH` (for example `winget install Gyan.FFmpeg`). CI installs it with Chocolatey.
+
 ## Publish (distributable folder)
 
 ```powershell
@@ -45,7 +47,7 @@ publish\MuurMusic-win-x64\MuurMusic.exe
 
 The publish folder is fully portable: it contains the .NET runtime, the Windows App SDK runtime (`WindowsAppSDKSelfContained=true`), and the FFmpeg DLLs (`avcodec-61.dll`, `avformat-61.dll`, `avutil-59.dll`, `avfilter-10.dll`, `avdevice-61.dll`, `swresample-5.dll`, `swscale-8.dll`, `postproc-58.dll`).
 
-> Note: the app csproj contains an `IncludeCompiledXamlInPublish` target that injects the compiled XAML (`.xbf`) files and `MuurMusic.pri` into the publish output. Without it, `dotnet publish` of an unpackaged WinUI app omits them and every page crashes with `XamlParseException`.
+> Note: the app csproj contains an `IncludeCompiledXamlInPublish` target that injects the compiled XAML (`.xbf`) files, `MuurMusic.pri` and the `Assets` folder into the publish output. Without it, `dotnet publish` of an unpackaged WinUI app omits them: every page crashes with `XamlParseException` and the artwork and empty-state images are blank.
 
 ## Data locations
 
