@@ -53,7 +53,6 @@ struct DSPChainBuilderView: View {
                 }
             }
         }
-        .muurScreen()
         .navigationTitle("Chain Builder")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

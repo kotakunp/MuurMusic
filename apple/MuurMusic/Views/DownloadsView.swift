@@ -81,7 +81,6 @@ struct DownloadsView: View {
                 .disabled(completed.isEmpty)
             }
         }
-        .muurScreen()
         .navigationTitle("Downloads")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

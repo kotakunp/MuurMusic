@@ -121,7 +121,7 @@ public final class MuurSettings: ObservableObject {
         accent = AccentChoice(rawValue: string(.accent) ?? "") ?? .amber
         nowPlayingStyle = NowPlayingStyle(rawValue: string(.nowPlayingStyle) ?? "") ?? .artwork
         let storedTabs = (d.stringArray(forKey: Key.tabOrder.rawValue) ?? []).compactMap { LibraryTab(rawValue: $0) }
-        tabOrder = storedTabs.isEmpty ? [.songs, .albums, .artists, .playlists, .sources, .search] : storedTabs
+        tabOrder = storedTabs.isEmpty ? [.playlists, .albums, .songs, .artists, .sources, .search] : storedTabs
         haptics = bool(.haptics, true)
 
         crossfadeSeconds = double(.crossfadeSeconds, 0)

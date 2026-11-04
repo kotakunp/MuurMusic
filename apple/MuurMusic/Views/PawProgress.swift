@@ -25,7 +25,8 @@ struct PawPrintShape: Shape {
 /// Animated row of paw prints — a cat "walking" while work happens.
 struct PawProgressView: View {
     var pawSize: CGFloat = 18
-    var color: Color = MuurTheme.accentAmber
+    /// Nil follows the current tint.
+    var color: Color? = nil
     var pawCount: Int = 3
 
     var body: some View {
@@ -34,7 +35,7 @@ struct PawProgressView: View {
             HStack(spacing: pawSize * 0.85) {
                 ForEach(0..<pawCount, id: \.self) { index in
                     PawPrintShape()
-                        .fill(color.opacity(index < step ? 1.0 : 0.2))
+                        .fill(pawStyle(lit: index < step))
                         .frame(width: pawSize, height: pawSize)
                         .rotationEffect(.degrees(index.isMultiple(of: 2) ? -14 : 14))
                 }
@@ -42,6 +43,12 @@ struct PawProgressView: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Working")
+    }
+
+    private func pawStyle(lit: Bool) -> AnyShapeStyle {
+        let opacity = lit ? 1.0 : 0.2
+        if let color { return AnyShapeStyle(color.opacity(opacity)) }
+        return AnyShapeStyle(.tint.opacity(opacity))
     }
 }
 

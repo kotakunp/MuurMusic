@@ -65,7 +65,6 @@ struct AboutView: View {
             .padding(28)
             .frame(maxWidth: .infinity)
         }
-        .muurScreen()
         .navigationTitle("About")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

@@ -84,7 +84,6 @@ struct FolderLevelView: View {
                 #endif
             }
         }
-        .muurScreen()
         .navigationTitle(title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(path.isEmpty ? .automatic : .inline)

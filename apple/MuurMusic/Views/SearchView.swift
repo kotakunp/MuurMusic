@@ -29,7 +29,6 @@ struct SearchView: View {
                 LoadingView()
             }
         }
-        .muurScreen()
         .navigationTitle("Search")
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album)
@@ -49,49 +48,49 @@ struct SearchView: View {
         .task(id: query) { await search() }
     }
 
+    @ViewBuilder
     private var recentSearches: some View {
-        List {
-            if !model.recentSearches.isEmpty {
-                Section("Recent") {
+        if model.recentSearches.isEmpty {
+            ContentUnavailableView(
+                "Search Your Library",
+                systemImage: "magnifyingglass",
+                description: Text("Songs, albums, artists and playlists, all in one place.")
+            )
+        } else {
+            List {
+                Section {
                     ForEach(model.recentSearches, id: \.self) { term in
                         Button {
                             query = term
                         } label: {
-                            Label(term, systemImage: "clock.arrow.circlepath")
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .contentShape(Rectangle())
+                            Label {
+                                Text(term)
+                                    .foregroundStyle(.primary)
+                            } icon: {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
-                }
-                Button(role: .destructive) {
-                    model.clearRecentSearches()
-                } label: {
-                    Label("Clear Recent Searches", systemImage: "trash")
-                }
-            } else {
-                Section {
-                    VStack(spacing: 8) {
-                        Image("EmptySearch")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: 160, maxHeight: 120)
-                        Text("Search your library")
-                            .font(.headline)
-                        Text("Songs, albums, artists and playlists — all in one place.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
+                } header: {
+                    HStack {
+                        Text("Recently Searched")
+                            .font(.title3.bold())
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Button("Clear") {
+                            model.clearRecentSearches()
+                        }
+                        .font(.body)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .listRowSeparator(.hidden)
+                    .textCase(nil)
                 }
             }
+            .listStyle(.plain)
         }
-        #if os(iOS)
-        .listStyle(.plain)
-        #endif
     }
 
     private func resultList(_ results: LibrarySearchResults) -> some View {
@@ -111,8 +110,8 @@ struct SearchView: View {
                     ForEach(results.albums) { album in
                         NavigationLink(value: album) {
                             HStack(spacing: 12) {
-                                ArtworkImage(artworkKey: album.artworkKey, cornerRadius: 8, size: 120)
-                                    .frame(width: 44, height: 44)
+                                ArtworkImage(artworkKey: album.artworkKey, cornerRadius: MuurTheme.radiusRow, size: 120)
+                                    .frame(width: 46, height: 46)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(album.displayTitle).lineLimit(1)
                                     Text(album.displayArtist)
@@ -129,7 +128,12 @@ struct SearchView: View {
                 Section("Artists") {
                     ForEach(results.artists) { group in
                         NavigationLink(value: group) {
-                            Label(group.displayName, systemImage: "person.fill")
+                            HStack(spacing: 12) {
+                                ArtworkImage(artworkKey: group.artworkKey, cornerRadius: 999, size: 120)
+                                    .frame(width: 46, height: 46)
+                                Text(group.displayName)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                 }
@@ -144,9 +148,7 @@ struct SearchView: View {
                 }
             }
         }
-        #if os(iOS)
         .listStyle(.plain)
-        #endif
     }
 
     private func search() async {

@@ -15,6 +15,11 @@ struct SongsView: View {
     @State private var tracks: [Track] = []
     @State private var isLoaded = false
 
+    private var countLine: String {
+        let songs = tracks.count == 1 ? "1 song" : "\(tracks.count) songs"
+        return "\(songs), \(MuurFormat.longDuration(tracks.reduce(0) { $0 + $1.duration }))"
+    }
+
     private var sortKey: String {
         "\(sort.field.rawValue)-\(sort.ascending)"
     }
@@ -37,40 +42,31 @@ struct SongsView: View {
                         ScanStatusLabel()
                             .listRowSeparator(.hidden)
                     }
-                    Section {
-                        ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
-                            TrackRowView(track: track)
-                                .onTapGesture {
-                                    model.play(tracks, startIndex: index)
-                                }
-                        }
-                    } header: {
-                        Text("\(tracks.count) songs • \(MuurFormat.longDuration(tracks.reduce(0) { $0 + $1.duration }))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 12, trailing: 20))
+                    ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
+                        TrackRowView(track: track)
+                            .onTapGesture {
+                                model.play(tracks, startIndex: index)
+                            }
                     }
+                    Text(countLine)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .listRowSeparator(.hidden)
+                        .padding(.vertical, 16)
                 }
-                #if os(iOS)
                 .listStyle(.plain)
-                #endif
             }
         }
-        .muurScreen()
         .navigationTitle(title)
         .toolbar {
             if allowSort {
                 ToolbarItem(placement: .primaryAction) {
                     sortMenu
                 }
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    model.play(tracks, shuffle: true)
-                } label: {
-                    Image(systemName: "shuffle")
-                }
-                .disabled(tracks.isEmpty)
-                .accessibilityLabel("Shuffle all")
             }
         }
         .task(id: sortKey) {

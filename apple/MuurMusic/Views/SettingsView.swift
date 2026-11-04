@@ -40,7 +40,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .muurScreen()
         .navigationTitle("Settings")
         .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
@@ -91,13 +90,13 @@ struct SettingsView: View {
                         settings.accent = choice
                     } label: {
                         Circle()
-                            .fill(Color(hex: choice.hex))
-                            .frame(width: 24, height: 24)
+                            .fill(choice.color)
+                            .frame(width: 26, height: 26)
                             .overlay {
                                 if settings.accent == choice {
                                     Image(systemName: "checkmark")
                                         .font(.caption.weight(.bold))
-                                        .foregroundStyle(.black)
+                                        .foregroundStyle(.white)
                                 }
                             }
                     }

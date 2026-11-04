@@ -2,74 +2,107 @@ import SwiftUI
 import MuurCore
 import MuurAudio
 
-/// The persistent bottom mini player (above the tab bar on iOS, bottom of the detail column on macOS).
+/// Artwork, title and the two transport buttons shared by every mini player.
+struct MiniPlayerContent: View {
+    @EnvironmentObject var player: PlaybackController
+
+    let track: Track
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ArtworkImage(artworkKey: track.artworkKey, cornerRadius: compact ? 5 : 7, size: 120)
+                .frame(width: compact ? 26 : 36, height: compact ? 26 : 36)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(track.displayTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                if !compact {
+                    Text(track.displayArtist)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+
+            Button {
+                player.togglePlayPause()
+            } label: {
+                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.title3)
+                    .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+
+            Button {
+                player.next()
+            } label: {
+                Image(systemName: "forward.fill")
+                    .font(.body)
+                    .frame(width: 32, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Next track")
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+    }
+}
+
+#if os(iOS)
+/// iOS 26 tab bar accessory. Shrinks to a single line when the tab bar minimizes.
+@available(iOS 26.0, *)
+struct MiniPlayerAccessory: View {
+    @EnvironmentObject var model: AppModel
+    @EnvironmentObject var player: PlaybackController
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+
+    let namespace: Namespace.ID
+
+    var body: some View {
+        if let track = player.currentTrack {
+            MiniPlayerContent(track: track, compact: placement == .inline)
+                .padding(.leading, 8)
+                .padding(.trailing, 6)
+                .contentShape(Rectangle())
+                .onTapGesture { model.isShowingNowPlaying = true }
+                .nowPlayingTransitionSource(namespace)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Opens Now Playing")
+        }
+    }
+}
+#endif
+
+/// Floating glass mini player (iOS before 26.1, macOS detail column).
 struct MiniPlayerView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
-    @Environment(\.colorScheme) private var scheme
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
 
+    var namespace: Namespace.ID? = nil
+
     var body: some View {
         if let track = player.currentTrack {
-            VStack(spacing: 0) {
-                ProgressView(value: player.duration > 0 ? player.position / player.duration : 0)
-                    .progressViewStyle(.linear)
-                    .tint(Color(hex: model.settings.accent.hex))
-                    .frame(height: 2)
-                    .accessibilityHidden(true)
-
-                HStack(spacing: 12) {
-                    ArtworkImage(artworkKey: track.artworkKey, cornerRadius: 6)
-                        .frame(width: 42, height: 42)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(track.displayTitle)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
-                        Text(track.displayArtist)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 8)
-
-                    Button {
-                        model.toggleFavorite(track)
-                    } label: {
-                        Image(systemName: track.favorite ? "heart.fill" : "heart")
-                            .foregroundStyle(track.favorite ? MuurTheme.accentAmber : .secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(track.favorite ? "Remove from favorites" : "Add to favorites")
-
-                    Button {
-                        player.togglePlayPause()
-                    } label: {
-                        Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
-
-                    Button {
-                        player.next()
-                    } label: {
-                        Image(systemName: "forward.fill")
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Next track")
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
+            MiniPlayerContent(track: track)
+                .padding(.leading, 8)
+                .padding(.trailing, 10)
+                .padding(.vertical, 7)
+                .muurGlass(in: Capsule())
+                .contentShape(Capsule())
                 .onTapGesture { presentNowPlaying() }
-            }
-            .background(.bar)
-            .overlay(alignment: .top) { Divider() }
-            .accessibilityElement(children: .contain)
+                .nowPlayingTransitionSource(namespace)
+                .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                .padding(.horizontal, 12)
+                .padding(.bottom, 6)
+                .accessibilityElement(children: .contain)
         }
     }
 

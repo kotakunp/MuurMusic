@@ -27,7 +27,7 @@ struct TabOrderView: View {
             } header: {
                 Text("Tab order")
             } footer: {
-                Text("On iOS the first four become tabs; the rest live under More. Changes apply immediately.")
+                Text("On iOS the first three (Search aside) get their own tabs next to Library. Every section stays in Library.")
             }
 
             if !available.isEmpty {
@@ -49,8 +49,7 @@ struct TabOrderView: View {
                 }
             }
         }
-        .muurScreen()
-        .navigationTitle("Tab Bar")
+        .navigationTitle("Tabs")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -1,22 +1,5 @@
 import SwiftUI
 
-/// Applies the midnight-cat background and hides default scroll backgrounds.
-private struct MuurScreenModifier: ViewModifier {
-    @Environment(\.colorScheme) private var scheme
-
-    func body(content: Content) -> some View {
-        content
-            .scrollContentBackground(.hidden)
-            .background(scheme.muur.bg.ignoresSafeArea())
-    }
-}
-
-extension View {
-    func muurScreen() -> some View {
-        modifier(MuurScreenModifier())
-    }
-}
-
 /// Small toolbar content shown while the library scanner is working.
 struct ScanStatusLabel: View {
     @EnvironmentObject var model: AppModel

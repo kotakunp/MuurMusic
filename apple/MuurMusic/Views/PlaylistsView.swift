@@ -24,7 +24,8 @@ struct PlaylistsView: View {
                     title: "No playlists yet",
                     message: "Build the perfect mixtape — or let a smart playlist do it for you.",
                     actionTitle: "New Playlist",
-                    action: { isShowingNewPlaylist = true }
+                    action: { isShowingNewPlaylist = true },
+                    systemImage: "music.note.list"
                 )
             } else {
                 List {
@@ -36,12 +37,9 @@ struct PlaylistsView: View {
                     }
                     .onMove(perform: move)
                 }
-                #if os(iOS)
                 .listStyle(.plain)
-                #endif
             }
         }
-        .muurScreen()
         .navigationTitle("Playlists")
         .navigationDestination(for: Playlist.self) { playlist in
             if let id = playlist.id {
@@ -302,7 +300,7 @@ struct PlaylistRow: View {
     var body: some View {
         HStack(spacing: 12) {
             PlaylistArtwork(artworkKey: playlist.artworkKey, isSmart: playlist.isSmart)
-                .frame(width: 44, height: 44)
+                .frame(width: 54, height: 54)
             VStack(alignment: .leading, spacing: 2) {
                 Text(playlist.name)
                     .font(.body)
@@ -318,7 +316,7 @@ struct PlaylistRow: View {
                 Spacer()
                 Image(systemName: "wand.and.stars")
                     .font(.caption)
-                    .foregroundStyle(MuurTheme.accentViolet)
+                    .foregroundStyle(.secondary)
                     .accessibilityLabel("Smart playlist")
             }
         }
@@ -332,15 +330,16 @@ struct PlaylistArtwork: View {
 
     var body: some View {
         if let artworkKey, !artworkKey.isEmpty {
-            ArtworkImage(artworkKey: artworkKey, cornerRadius: 8, size: 200)
+            ArtworkImage(artworkKey: artworkKey, cornerRadius: MuurTheme.radiusRow, size: 200)
         } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(MuurTheme.accentViolet.opacity(0.15))
-                Image(systemName: isSmart ? "wand.and.stars" : "music.note.list")
-                    .foregroundStyle(MuurTheme.accentViolet)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            RoundedRectangle(cornerRadius: MuurTheme.radiusRow, style: .continuous)
+                .fill(.fill.tertiary)
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    Image(systemName: isSmart ? "wand.and.stars" : "music.note.list")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
         }
     }
 }
@@ -367,7 +366,7 @@ struct MuurShareSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "doc.fill")
                 .font(.largeTitle)
-                .foregroundStyle(MuurTheme.accentAmber)
+                .foregroundStyle(.tint)
             Text(file.url.lastPathComponent)
                 .font(.headline)
                 .multilineTextAlignment(.center)

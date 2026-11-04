@@ -3,6 +3,7 @@ import MuurCore
 import MuurAudio
 #if os(iOS)
 import MediaPlayer
+import AVKit
 #endif
 
 /// Output picker: this device or a discovered DLNA renderer.
@@ -87,10 +88,23 @@ struct OutputMenu: View {
 struct SystemVolumeView: UIViewRepresentable {
     func makeUIView(context: Context) -> MPVolumeView {
         let view = MPVolumeView()
-        view.tintColor = UIColor(MuurTheme.accentAmber)
+        view.tintColor = .white
         return view
     }
 
     func updateUIView(_ uiView: MPVolumeView, context: Context) {}
+}
+
+/// The system AirPlay / Bluetooth route picker.
+struct AirPlayButton: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let view = AVRoutePickerView()
+        view.tintColor = UIColor.white.withAlphaComponent(0.6)
+        view.activeTintColor = .white
+        view.prioritizesVideoDevices = false
+        return view
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 #endif

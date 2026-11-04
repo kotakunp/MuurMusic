@@ -12,7 +12,7 @@ struct AlbumsView: View {
     @State private var albums: [Album] = []
     @State private var isLoaded = false
 
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16)]
+    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 220), spacing: 16, alignment: .top)]
 
     var body: some View {
         Group {
@@ -26,7 +26,7 @@ struct AlbumsView: View {
                 )
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 20) {
+                    LazyVGrid(columns: columns, spacing: 22) {
                         ForEach(albums) { album in
                             NavigationLink(value: album) {
                                 AlbumCard(album: album)
@@ -34,11 +34,11 @@ struct AlbumsView: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(16)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
                 }
             }
         }
-        .muurScreen()
         .navigationTitle("Albums")
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album)
@@ -84,25 +84,26 @@ struct AlbumCard: View {
     let album: Album
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
             ArtworkImage(artworkKey: album.artworkKey, cornerRadius: MuurTheme.radiusCard, size: 400)
-                .aspectRatio(1, contentMode: .fit)
-                .overlay(alignment: .bottomTrailing) {
-                    if album.isHiRes {
-                        Text("HI-RES")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(MuurTheme.accentAmber, in: RoundedRectangle(cornerRadius: 4))
-                            .foregroundStyle(.black)
-                            .padding(6)
-                    }
+                .overlay {
+                    RoundedRectangle(cornerRadius: MuurTheme.radiusCard, style: .continuous)
+                        .strokeBorder(.primary.opacity(0.08), lineWidth: 0.5)
                 }
-            Text(album.displayTitle)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
+                .padding(.bottom, 7)
+            HStack(spacing: 4) {
+                Text(album.displayTitle)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(1)
+                if album.isHiRes {
+                    Image(systemName: "hifispeaker.fill")
+                        .font(.system(size: 9))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Hi-Res")
+                }
+            }
             Text(album.displayArtist)
-                .font(.caption)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -110,7 +111,7 @@ struct AlbumCard: View {
     }
 }
 
-/// Album detail: header with artwork and actions, then the track list.
+/// Album detail: centered artwork header with Play / Shuffle, then the numbered track list.
 struct AlbumDetailView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
@@ -122,40 +123,32 @@ struct AlbumDetailView: View {
 
     var body: some View {
         List {
-            Section {
-                HStack(alignment: .top, spacing: 16) {
-                    ArtworkImage(artworkKey: album.artworkKey, cornerRadius: MuurTheme.radiusCard, size: 600)
-                        .frame(width: 140, height: 140)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(album.displayTitle)
-                            .font(.title3.weight(.bold))
-                        Text(album.displayArtist)
-                            .foregroundStyle(.secondary)
-                        Text(detailsLine)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
-                        .padding(.top, 4)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.vertical, 8)
-            }
-            .listRowSeparator(.hidden)
+            header
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 16, trailing: 20))
 
-            Section {
-                ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
-                    TrackRowView(track: track, showsArtwork: false, subtitleOverride: track.displayArtist, index: track.trackNumber ?? index + 1)
-                        .onTapGesture {
-                            model.play(tracks, startIndex: index)
-                        }
+            ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
+                TrackRowView(
+                    track: track,
+                    showsArtwork: false,
+                    subtitleOverride: track.displayArtist == album.displayArtist ? "" : track.displayArtist,
+                    index: track.trackNumber ?? index + 1
+                )
+                .onTapGesture {
+                    model.play(tracks, startIndex: index)
                 }
+            }
+
+            if !tracks.isEmpty {
+                Text(footerLine)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .listRowSeparator(.hidden)
+                    .padding(.top, 8)
+                    .padding(.bottom, 24)
             }
         }
-        #if os(iOS)
         .listStyle(.plain)
-        #endif
-        .muurScreen()
         .navigationTitle(album.displayTitle)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -165,8 +158,9 @@ struct AlbumDetailView: View {
                 Menu {
                     TrackContextMenu(tracks: tracks, sheet: $sheetRequest)
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
                 }
+                .accessibilityLabel("Album actions")
             }
         }
         .sheet(item: $sheetRequest) { request in
@@ -175,13 +169,53 @@ struct AlbumDetailView: View {
         .task(id: album.id) { await observe() }
     }
 
-    private var detailsLine: String {
+    private var header: some View {
+        VStack(spacing: 16) {
+            ArtworkImage(artworkKey: album.artworkKey, cornerRadius: MuurTheme.radiusArtwork, size: 800)
+                .frame(maxWidth: 280)
+                .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
+                .padding(.top, 4)
+
+            VStack(spacing: 4) {
+                Text(album.displayTitle)
+                    .font(.title2.bold())
+                    .multilineTextAlignment(.center)
+                Text(album.displayArtist)
+                    .font(.title3)
+                    .foregroundStyle(.tint)
+                    .multilineTextAlignment(.center)
+                if !metaLine.isEmpty {
+                    Text(metaLine)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
+            }
+
+            PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
+                .disabled(tracks.isEmpty)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// "ROCK · 2021 · FLAC 24/96"
+    private var metaLine: String {
         var parts: [String] = []
+        if !album.genre.isEmpty { parts.append(album.genre.uppercased()) }
         if let year = album.year { parts.append(String(year)) }
-        parts.append("\(album.trackCount) songs")
-        parts.append(MuurFormat.longDuration(album.duration))
-        if !album.codec.isEmpty { parts.append(album.codec.uppercased()) }
-        return parts.joined(separator: " • ")
+        if !album.codec.isEmpty {
+            parts.append(album.isHiRes ? "\(album.codec.uppercased()) HI-RES" : album.codec.uppercased())
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var footerLine: String {
+        let songs = "\(album.trackCount) \(album.trackCount == 1 ? "song" : "songs"), \(MuurFormat.longDuration(album.duration))"
+        if let year = album.year {
+            return "\(year)\n\(songs)"
+        }
+        return songs
     }
 
     private func observe() async {

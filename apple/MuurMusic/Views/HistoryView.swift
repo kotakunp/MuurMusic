@@ -22,20 +22,22 @@ struct HistoryView: View {
     @State private var isLoaded = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("History", selection: $mode) {
-                ForEach(Mode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+        content
+        .navigationTitle(mode.rawValue)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Show", selection: $mode) {
+                        ForEach(Mode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease")
                 }
+                .accessibilityLabel("Choose history view")
             }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-
-            content
         }
-        .muurScreen()
-        .navigationTitle("History")
         .task(id: mode) { await observe() }
     }
 

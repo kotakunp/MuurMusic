@@ -40,9 +40,9 @@ struct SourcesView: View {
             if model.settings.offlineMode {
                 Section {
                     HStack(spacing: 10) {
-                        Image("Offline")
-                            .resizable()
-                            .scaledToFit()
+                        Image(systemName: "wifi.slash")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
                             .frame(width: 40, height: 40)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Offline Mode is on")
@@ -133,7 +133,6 @@ struct SourcesView: View {
                 }
             }
         }
-        .muurScreen()
         .navigationTitle("Sources")
         .navigationDestination(for: SourceConfig.self) { config in
             SourceBrowserView(config: config)

@@ -6,14 +6,14 @@ import MuurAudio
 struct RootView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
-    @Environment(\.colorScheme) private var scheme
+    @Namespace private var playerNamespace
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
 
     var body: some View {
         content
-            .tint(Color(hex: model.settings.accent.hex))
+            .tint(model.settings.accentColor)
             .preferredColorScheme(preferredScheme)
             .onOpenURL { url in model.handleIncomingURL(url) }
             .muurToast($model.toast)
@@ -43,43 +43,82 @@ struct RootView: View {
     // MARK: iOS
 
     #if os(iOS)
-    private var orderedTabs: [LibraryTab] {
-        model.settings.tabOrder
-    }
-
-    private var visibleTabs: [LibraryTab] {
-        Array(orderedTabs.prefix(4))
-    }
-
-    private var overflowTabs: [LibraryTab] {
-        Array(orderedTabs.dropFirst(4))
+    /// Library hub, up to three pinned sections, then Search.
+    @ViewBuilder
+    private var tabs: some View {
+        if #available(iOS 26.1, *) {
+            glassTabs
+        } else {
+            classicTabs
+        }
     }
 
     private var iOSRoot: some View {
+        tabs
+            .fullScreenCover(isPresented: $model.isShowingNowPlaying) {
+                NowPlayingView()
+                    .environmentObject(model)
+                    .environmentObject(player)
+                    .nowPlayingZoom(playerNamespace)
+            }
+    }
+
+    /// iOS 26: Liquid Glass tab bar that shrinks on scroll, the mini player as its bottom
+    /// accessory, and Search as the separate search-role tab.
+    @available(iOS 26.1, *)
+    private var glassTabs: some View {
         TabView(selection: $model.tab) {
-            ForEach(visibleTabs, id: \.self) { tab in
+            Tab("Library", systemImage: "books.vertical.fill", value: HomeTab.home) {
+                NavigationStack(path: $model.homePath) {
+                    LibraryHomeView()
+                }
+            }
+            ForEach(model.pinnedTabs, id: \.self) { tab in
+                Tab(AppSection(tab)?.title ?? "", systemImage: AppSection(tab)?.systemImage ?? "music.note", value: HomeTab.library(tab)) {
+                    NavigationStack {
+                        RootSectionDestination(section: AppSection(tab) ?? .songs)
+                    }
+                }
+            }
+            Tab("Search", systemImage: "magnifyingglass", value: HomeTab.search, role: .search) {
+                NavigationStack {
+                    SearchView()
+                }
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabViewBottomAccessory(isEnabled: player.currentTrack != nil) {
+            MiniPlayerAccessory(namespace: playerNamespace)
+        }
+    }
+
+    /// iOS 17-26.0: the same tabs with a floating mini player above the tab bar.
+    private var classicTabs: some View {
+        TabView(selection: $model.tab) {
+            NavigationStack(path: $model.homePath) {
+                LibraryHomeView()
+            }
+            .withMiniPlayer(namespace: playerNamespace)
+            .tabItem { Label("Library", systemImage: "books.vertical.fill") }
+            .tag(HomeTab.home)
+
+            ForEach(model.pinnedTabs, id: \.self) { tab in
+                let section = AppSection(tab) ?? .songs
                 // The inset goes on the stack, not the root view, so pushed screens keep the mini player.
                 NavigationStack {
-                    sectionView(AppSection(tab) ?? .songs)
+                    RootSectionDestination(section: section)
                 }
-                .withMiniPlayer()
-                .tabItem {
-                    let section = AppSection(tab) ?? .songs
-                    Label(section.title, systemImage: section.systemImage)
-                }
+                .withMiniPlayer(namespace: playerNamespace)
+                .tabItem { Label(section.title, systemImage: section.systemImage) }
                 .tag(HomeTab.library(tab))
             }
-            NavigationStack(path: $model.morePath) {
-                MoreView(overflow: overflowTabs)
+
+            NavigationStack {
+                SearchView()
             }
-            .withMiniPlayer()
-            .tabItem { Label("More", systemImage: "ellipsis") }
-            .tag(HomeTab.more)
-        }
-        .fullScreenCover(isPresented: $model.isShowingNowPlaying) {
-            NowPlayingView()
-                .environmentObject(model)
-                .environmentObject(player)
+            .withMiniPlayer(namespace: playerNamespace)
+            .tabItem { Label("Search", systemImage: "magnifyingglass") }
+            .tag(HomeTab.search)
         }
     }
     #endif
@@ -93,7 +132,7 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 210, ideal: 230, max: 300)
         } detail: {
             NavigationStack {
-                sectionView(model.section ?? .songs)
+                RootSectionDestination(section: model.section ?? .songs)
             }
             .withMiniPlayer()
         }
@@ -106,80 +145,50 @@ struct RootView: View {
         }
     }
     #endif
-
-    // MARK: Sections
-
-    @ViewBuilder
-    private func sectionView(_ section: AppSection) -> some View {
-        switch section {
-        case .songs: SongsView()
-        case .albums: AlbumsView()
-        case .artists: GroupListView(kind: .artist)
-        case .albumArtists: GroupListView(kind: .albumArtist)
-        case .genres: GroupListView(kind: .genre)
-        case .composers: GroupListView(kind: .composer)
-        case .folders: FoldersView()
-        case .playlists: PlaylistsView()
-        case .sources: SourcesView()
-        case .files: FilesView()
-        case .downloads: DownloadsView()
-        case .favorites: FavoritesView()
-        case .history: HistoryView()
-        case .search: SearchView()
-        case .settings: SettingsView()
-        }
-    }
 }
 
 extension View {
-    /// Attaches the mini player above the tab bar (iOS) or at the bottom of the detail column (macOS).
-    func withMiniPlayer() -> some View {
+    /// Floats the mini player above the tab bar (iOS before 26.1) or at the bottom of the detail column (macOS).
+    func withMiniPlayer(namespace: Namespace.ID? = nil) -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
-            MiniPlayerView()
+            MiniPlayerView(namespace: namespace)
         }
+    }
+
+    /// Marks the view the Now Playing screen zooms out of.
+    @ViewBuilder
+    func nowPlayingTransitionSource(_ namespace: Namespace.ID?) -> some View {
+        if let namespace {
+            if #available(iOS 18.0, macOS 15.0, *) {
+                matchedTransitionSource(id: NowPlayingTransition.sourceID, in: namespace)
+            } else {
+                self
+            }
+        } else {
+            self
+        }
+    }
+
+    /// Zooms the Now Playing cover out of the mini player (iOS 18+).
+    @ViewBuilder
+    func nowPlayingZoom(_ namespace: Namespace.ID) -> some View {
+        #if os(iOS)
+        if #available(iOS 18.0, *) {
+            navigationTransition(.zoom(sourceID: NowPlayingTransition.sourceID, in: namespace))
+        } else {
+            self
+        }
+        #else
+        self
+        #endif
     }
 }
 
-/// iOS "More" tab: remaining library sections plus Downloads, Favorites, History and Settings.
-struct MoreView: View {
-    @EnvironmentObject var model: AppModel
-    let overflow: [LibraryTab]
-
-    private var overflowSections: [AppSection] {
-        overflow.compactMap(AppSection.init)
-    }
-
-    private var fixedSections: [AppSection] {
-        [.downloads, .favorites, .history, .settings]
-    }
-
-    var body: some View {
-        List {
-            if !overflowSections.isEmpty {
-                Section("Library") {
-                    ForEach(overflowSections) { section in
-                        NavigationLink(value: section) {
-                            Label(section.title, systemImage: section.systemImage)
-                        }
-                    }
-                }
-            }
-            Section {
-                ForEach(fixedSections) { section in
-                    NavigationLink(value: section) {
-                        Label(section.title, systemImage: section.systemImage)
-                    }
-                }
-            }
-        }
-        .navigationTitle("MuurMusic")
-        .navigationDestination(for: AppSection.self) { section in
-            RootSectionDestination(section: section)
-        }
-    }
+enum NowPlayingTransition {
+    static let sourceID = "now-playing"
 }
 
-/// Pushed section destination (used by the iOS "More" list).
+/// The screen for a section, used by tabs, the Library hub and the macOS detail column.
 struct RootSectionDestination: View {
     let section: AppSection
 

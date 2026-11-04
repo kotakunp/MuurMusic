@@ -1,69 +1,100 @@
 import SwiftUI
+import MuurCore
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
-/// Brand tokens from docs/specs/SHARED_FORMATS.md ("midnight cat" theme).
+/// Brand tokens. Screens use system backgrounds and materials so Liquid Glass and Dark Mode
+/// render the way the OS intends; the brand shows up through the accent and artwork.
 enum MuurTheme {
     // MARK: Corner radii
-    static let radiusRow: CGFloat = 8
-    static let radiusCard: CGFloat = 14
-    static let radiusArtwork: CGFloat = 22
+    static let radiusRow: CGFloat = 6
+    static let radiusCard: CGFloat = 10
+    static let radiusArtwork: CGFloat = 14
 
-    // MARK: Dark palette
-    static let bgDark = Color(hex: "#17122B")
-    static let bgElevatedDark = Color(hex: "#211A3D")
-    static let bgHighlightDark = Color(hex: "#2C2350")
-
-    // MARK: Light palette
-    static let bgLight = Color(hex: "#F7F5FC")
-    static let bgElevatedLight = Color(hex: "#FFFFFF")
-    static let bgHighlightLight = Color(hex: "#ECE7FA")
-
-    // MARK: Accents (same in both schemes)
+    // MARK: Brand colors
     static let accentAmber = Color(hex: "#FFB23F")
     static let accentViolet = Color(hex: "#8B6CFF")
-    static let danger = Color(hex: "#FF6B6B")
-    static let success = Color(hex: "#5EE0A0")
-
-    // MARK: Text
-    static let textPrimaryDark = Color(hex: "#F5F2FF")
-    static let textSecondaryDark = Color(hex: "#A79FC7")
-    static let textPrimaryLight = Color(hex: "#1B1630")
-    static let textSecondaryLight = Color(hex: "#5E5780")
+    static let danger = Color.red
+    static let success = Color.green
 }
 
-/// Resolved palette for one color scheme.
-struct MuurPalette {
-    let bg: Color
-    let bgElevated: Color
-    let bgHighlight: Color
-    let textPrimary: Color
-    let textSecondary: Color
+extension AccentChoice {
+    /// The accent as an adaptive color. The brand hexes are bright enough for dark backgrounds
+    /// but fail contrast on white, so light mode uses a deeper shade of the same hue.
+    var color: Color {
+        Color(light: lightHex, dark: hex)
+    }
 
-    init(scheme: ColorScheme) {
-        switch scheme {
-        case .light:
-            bg = MuurTheme.bgLight
-            bgElevated = MuurTheme.bgElevatedLight
-            bgHighlight = MuurTheme.bgHighlightLight
-            textPrimary = MuurTheme.textPrimaryLight
-            textSecondary = MuurTheme.textSecondaryLight
-        default:
-            bg = MuurTheme.bgDark
-            bgElevated = MuurTheme.bgElevatedDark
-            bgHighlight = MuurTheme.bgHighlightDark
-            textPrimary = MuurTheme.textPrimaryDark
-            textSecondary = MuurTheme.textSecondaryDark
+    private var lightHex: String {
+        switch self {
+        case .amber: return "#B86A00"
+        case .violet: return "#6A4BE3"
+        case .mint: return "#0B8F72"
+        case .rose: return "#D63A73"
+        case .sky: return "#1673C6"
         }
     }
 }
 
-extension ColorScheme {
-    /// The MuurMusic palette for this scheme.
-    var muur: MuurPalette { MuurPalette(scheme: self) }
+extension MuurSettings {
+    var accentColor: Color { accent.color }
+}
+
+extension Color {
+    /// A color that resolves differently in light and dark appearance.
+    init(light: String, dark: String) {
+        #if canImport(UIKit)
+        let lightColor = UIColor(Color(hex: light))
+        let darkColor = UIColor(Color(hex: dark))
+        self.init(uiColor: UIColor { $0.userInterfaceStyle == .dark ? darkColor : lightColor })
+        #elseif canImport(AppKit)
+        let lightColor = NSColor(Color(hex: light))
+        let darkColor = NSColor(Color(hex: dark))
+        self.init(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? darkColor : lightColor
+        })
+        #endif
+    }
+
+    /// The platform's base window/page background.
+    static var muurBackground: Color {
+        #if canImport(UIKit)
+        Color(uiColor: .systemBackground)
+        #elseif canImport(AppKit)
+        Color(nsColor: .windowBackgroundColor)
+        #endif
+    }
 }
 
 extension View {
-    /// Card background: elevated brand color with the card corner radius.
-    func muurCard(_ palette: MuurPalette, radius: CGFloat = MuurTheme.radiusCard) -> some View {
-        background(palette.bgElevated, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+    /// Liquid Glass on iOS 26 / macOS 26, a regular material before that.
+    @ViewBuilder
+    func muurGlass<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
+        if #available(iOS 26.0, macOS 26.0, *) {
+            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+        }
+    }
+}
+
+/// Wide capsule button used for Play / Shuffle in collection headers.
+struct MuurPillButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .labelStyle(.titleAndIcon)
+            .lineLimit(1)
+            .foregroundStyle(.tint)
+            .frame(maxWidth: .infinity, minHeight: 46)
+            .background(.fill.tertiary, in: Capsule())
+            .contentShape(Capsule())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.55 : 1) : 0.4)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }

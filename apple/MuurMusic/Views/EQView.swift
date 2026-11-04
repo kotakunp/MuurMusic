@@ -59,7 +59,6 @@ struct EQView: View {
             }
             .padding(20)
         }
-        .muurScreen()
         .navigationTitle("Equalizer")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -189,7 +188,7 @@ struct EQView: View {
                         .rotationEffect(.degrees(-90))
                         .frame(width: sliderHeight)
                         .frame(width: 30, height: sliderHeight)
-                        .tint(Color(hex: settings.accent.hex))
+                        .tint(settings.accentColor)
                     Text(Self.bandLabel(frequency))
                         .font(.system(size: 9, design: .rounded))
                         .foregroundStyle(.secondary)

@@ -14,21 +14,25 @@ struct QueueView: View {
                 EmptyStateView(
                     illustration: .library,
                     title: "Queue is empty",
-                    message: "Add songs and the cat lines them up here."
+                    message: "Add songs and the cat lines them up here.",
+                    systemImage: "list.bullet"
                 )
             } else {
                 List {
                     if let current = player.queue.currentItem {
                         Section("Now Playing") {
                             QueueRow(item: current, isCurrent: true)
+                                .listRowBackground(Color.clear)
                         }
                     }
                     Section {
                         ForEach(player.queue.following) { item in
                             QueueRow(item: item, isCurrent: false)
+                                .contentShape(Rectangle())
                                 .onTapGesture {
                                     player.playItem(id: item.id)
                                 }
+                                .listRowBackground(Color.clear)
                         }
                         .onMove(perform: move)
                         .onDelete(perform: delete)
@@ -36,9 +40,8 @@ struct QueueView: View {
                         upNextHeader
                     }
                 }
-                #if os(iOS)
                 .listStyle(.plain)
-                #endif
+                .scrollContentBackground(.hidden)
                 .muurEditMode($editMode)
             }
         }
@@ -82,8 +85,8 @@ struct QueueRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            ArtworkImage(artworkKey: item.track.artworkKey, cornerRadius: 6, size: 120)
-                .frame(width: 36, height: 36)
+            ArtworkImage(artworkKey: item.track.artworkKey, cornerRadius: MuurTheme.radiusRow, size: 120)
+                .frame(width: 42, height: 42)
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.track.displayTitle)
                     .font(.subheadline.weight(isCurrent ? .semibold : .regular))

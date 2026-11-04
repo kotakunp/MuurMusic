@@ -27,7 +27,6 @@ struct SourceBrowserView: View {
                 LoadingView(message: "Connecting to \(config.name)…")
             }
         }
-        .muurScreen()
         .navigationTitle(config.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -334,7 +333,6 @@ struct ArchiveLevelView: View {
                 LoadingView(message: "Opening archive…")
             }
         }
-        .muurScreen()
         .navigationTitle(archive.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

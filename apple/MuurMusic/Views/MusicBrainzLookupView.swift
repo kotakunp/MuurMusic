@@ -25,7 +25,6 @@ struct MusicBrainzLookupView: View {
                     content
                 }
             }
-            .muurScreen()
             .navigationTitle("Look Up Tags")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)

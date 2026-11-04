@@ -110,7 +110,6 @@ struct EffectsView: View {
             }
         }
         .formStyle(.grouped)
-        .muurScreen()
         .navigationTitle("Audio Effects")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

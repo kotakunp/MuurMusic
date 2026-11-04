@@ -30,7 +30,6 @@ struct PlaylistDetailView: View {
                 LoadingView()
             }
         }
-        .muurScreen()
         .navigationTitle(playlist?.name ?? "Playlist")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
@@ -65,20 +64,33 @@ struct PlaylistDetailView: View {
     private func content(_ playlist: Playlist) -> some View {
         List {
             Section {
-                VStack(spacing: 12) {
+                VStack(spacing: 16) {
                     PlaylistCollage(tracks: tracks)
-                        .frame(width: 150, height: 150)
-                    Text(playlist.name)
-                        .font(.title3.weight(.bold))
-                    Text("\(tracks.count) songs • \(MuurFormat.longDuration(tracks.reduce(0) { $0 + $1.duration }))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .frame(width: 250, height: 250)
+                        .shadow(color: .black.opacity(0.22), radius: 22, y: 12)
+                    VStack(spacing: 4) {
+                        Text(playlist.name)
+                            .font(.title2.bold())
+                            .multilineTextAlignment(.center)
+                        if !playlist.notes.isEmpty {
+                            Text(playlist.notes)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        Text(playlistSummary)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 2)
+                    }
                     PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
+                        .disabled(tracks.isEmpty)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
             .listRowSeparator(.hidden)
+            .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 16, trailing: 20))
 
             Section {
                 ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
@@ -91,10 +103,15 @@ struct PlaylistDetailView: View {
                 .onDelete(perform: playlist.isSmart ? nil : delete)
             }
         }
-        #if os(iOS)
         .listStyle(.plain)
-        #endif
         .muurEditMode($editMode)
+    }
+
+    private var playlistSummary: String {
+        let songs = tracks.count == 1 ? "1 song" : "\(tracks.count) songs"
+        let duration = MuurFormat.longDuration(tracks.reduce(0) { $0 + $1.duration })
+        let kind = playlist?.isSmart == true ? "SMART PLAYLIST · " : ""
+        return "\(kind)\(songs.uppercased()) · \(duration.uppercased())"
     }
 
     private func move(from source: IndexSet, to destination: Int) {

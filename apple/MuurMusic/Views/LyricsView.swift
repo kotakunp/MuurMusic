@@ -59,7 +59,8 @@ struct LyricsView: View {
                 title: "No lyrics found",
                 message: model.settings.fetchLyricsOnline
                     ? "The cat looked everywhere — no lyrics for this one."
-                    : "Enable “Fetch lyrics online” in Settings to look them up."
+                    : "Enable “Fetch lyrics online” in Settings to look them up.",
+                systemImage: "quote.bubble"
             )
         }
     }
@@ -69,13 +70,15 @@ struct LyricsView: View {
             let index = lyrics.index(at: player.position)
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 14) {
+                    LazyVStack(alignment: .leading, spacing: 18) {
                         ForEach(lyrics.lines) { line in
                             Text(line.text.isEmpty ? "♪" : line.text)
-                                .font(.title3.weight(line.id == index ? .bold : .regular))
-                                .foregroundStyle(line.id == index ? Color(hex: model.settings.accent.hex) : .secondary)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: .infinity)
+                                .font(.title2.bold())
+                                .foregroundStyle(line.id == index ? .primary : .tertiary)
+                                .scaleEffect(line.id == index ? 1 : 0.96, anchor: .leading)
+                                .animation(.spring(response: 0.4), value: index)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .id(line.id)
                                 .onTapGesture {
                                     if let time = line.time {
@@ -86,7 +89,7 @@ struct LyricsView: View {
                         }
                     }
                     .padding(.vertical, 120)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 28)
                 }
                 .onChange(of: index) { _, newIndex in
                     if let newIndex {
@@ -109,10 +112,10 @@ struct LyricsView: View {
     private func plainLyrics(_ lyrics: Lyrics) -> some View {
         ScrollView {
             Text(lyrics.plainText)
-                .font(.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(24)
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(28)
         }
     }
 

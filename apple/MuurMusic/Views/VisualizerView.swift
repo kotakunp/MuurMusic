@@ -15,6 +15,7 @@ struct VisualizerView: View {
                 let spectrum = player.meters.spectrum
                 let levels = player.meters.levels
                 let time = context.date.timeIntervalSinceReferenceDate
+                // The bright brand hex: visualizers always draw on black.
                 let accent = Color(hex: model.settings.accent.hex)
                 let secondary = MuurTheme.accentViolet
                 draw(preset: preset, in: &graphics, size: size,

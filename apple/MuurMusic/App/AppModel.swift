@@ -84,15 +84,15 @@ final class AppModel: ObservableObject {
 
     // Navigation
     @Published var section: AppSection? = .songs
-    /// iOS tab selection (a LibraryTab from the customizable order, or the "more" tab).
-    @Published var tab: HomeTab = .more
+    /// iOS tab selection.
+    @Published var tab: HomeTab = .home
     @Published var isShowingNowPlaying = false
     /// Incremented to ask the macOS root view to open the Now Playing window.
     @Published var nowPlayingWindowRequest = 0
     /// Playlist the user wants to see (deep link).
     @Published var openPlaylistID: Int64?
-    /// Navigation path of the iOS "More" stack (deep links push here).
-    @Published var morePath = NavigationPath()
+    /// Navigation path of the iOS Library tab (deep links to unpinned sections push here).
+    @Published var homePath = NavigationPath()
 
     // Shared observed state
     @Published private(set) var sources: [SourceConfig] = []
@@ -121,7 +121,6 @@ final class AppModel: ObservableObject {
         player = PlaybackController(environment: booted)
         recentSearches = booted.defaults.stringArray(forKey: "recentSearches") ?? []
         if let firstTab = settings.tabOrder.first, let firstSection = AppSection(firstTab) {
-            tab = .library(firstTab)
             section = firstSection
         }
         AppModel.shared = self
@@ -282,42 +281,33 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Library sections pinned as their own iOS tabs, between Library and Search.
+    var pinnedTabs: [LibraryTab] {
+        Array(settings.tabOrder.filter { $0 != .search }.prefix(3))
+    }
+
     /// Selects the tab (iOS) or sidebar row (macOS) that shows the given section,
-    /// pushing onto the "More" stack when the section lives there.
+    /// pushing onto the Library stack when the section has no tab of its own.
     func navigate(to section: AppSection) {
         self.section = section
-        let order = settings.tabOrder
-        if let libTab = order.first(where: { AppSection($0) == section }) {
-            if order.prefix(4).contains(libTab) {
-                tab = .library(libTab)
-            } else {
-                tab = .more
-                morePath.append(section)
-            }
+        if section == .search {
+            tab = .search
+        } else if let pinned = pinnedTabs.first(where: { AppSection($0) == section }) {
+            tab = .library(pinned)
         } else {
-            tab = .more
-            morePath.append(section)
+            tab = .home
+            var path = NavigationPath()
+            path.append(section)
+            homePath = path
         }
     }
 }
 
 /// iOS tab bar selection.
 enum HomeTab: Hashable {
+    /// The Library hub with every section.
+    case home
+    /// A section pinned from the customizable tab order.
     case library(LibraryTab)
-    case more
-
-    static func == (lhs: HomeTab, rhs: HomeTab) -> Bool {
-        switch (lhs, rhs) {
-        case (.library(let a), .library(let b)): return a == b
-        case (.more, .more): return true
-        default: return false
-        }
-    }
-
-    func hash(into hasher: inout Hasher) {
-        switch self {
-        case .library(let tab): hasher.combine(0); hasher.combine(tab)
-        case .more: hasher.combine(1)
-        }
-    }
+    case search
 }

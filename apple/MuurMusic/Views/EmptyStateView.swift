@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Friendly empty state with a bundled cat illustration.
+/// Empty state built on the system's ContentUnavailableView.
 struct EmptyStateView: View {
     enum Illustration {
         case library
@@ -8,12 +8,12 @@ struct EmptyStateView: View {
         case offline
         case none
 
-        var assetName: String? {
+        var systemImage: String {
             switch self {
-            case .library: return "EmptyLibrary"
-            case .search: return "EmptySearch"
-            case .offline: return "Offline"
-            case .none: return nil
+            case .library: return "music.note"
+            case .search: return "magnifyingglass"
+            case .offline: return "wifi.slash"
+            case .none: return "pawprint.fill"
             }
         }
     }
@@ -23,36 +23,21 @@ struct EmptyStateView: View {
     var message: String
     var actionTitle: String? = nil
     var action: (() -> Void)? = nil
+    /// Overrides the illustration's symbol.
+    var systemImage: String? = nil
 
     var body: some View {
-        VStack(spacing: 14) {
-            if let assetName = illustration.assetName {
-                Image(assetName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 190, maxHeight: 150)
-                    .accessibilityHidden(true)
-            } else {
-                PawPrintShape()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(width: 54, height: 54)
-                    .accessibilityHidden(true)
-            }
-            Text(title)
-                .font(.headline)
+        ContentUnavailableView {
+            Label(title, systemImage: systemImage ?? illustration.systemImage)
+        } description: {
             Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 420)
+        } actions: {
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
                     .buttonStyle(.borderedProminent)
-                    .padding(.top, 4)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
             }
         }
-        .padding(32)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
     }
 }

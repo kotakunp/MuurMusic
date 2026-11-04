@@ -33,15 +33,16 @@ struct GroupListView: View {
             } else {
                 List(groups) { group in
                     NavigationLink(value: group) {
-                        HStack(spacing: 12) {
-                            ArtworkImage(artworkKey: group.artworkKey, cornerRadius: 6, size: 120)
-                                .frame(width: 40, height: 40)
+                        HStack(spacing: 14) {
+                            // People get round portraits, like Contacts and Music; genres stay square.
+                            ArtworkImage(artworkKey: group.artworkKey, cornerRadius: isPerson ? 999 : MuurTheme.radiusRow, size: 160)
+                                .frame(width: 50, height: 50)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(group.displayName)
                                     .font(.body)
                                     .lineLimit(1)
-                                Text("\(group.trackCount) songs • \(group.albumCount) albums")
-                                    .font(.caption)
+                                Text(countLine(group))
+                                    .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                         }
@@ -52,12 +53,21 @@ struct GroupListView: View {
                 #endif
             }
         }
-        .muurScreen()
         .navigationTitle(title)
         .navigationDestination(for: LibraryGroup.self) { group in
             GroupDetailView(group: group)
         }
         .task(id: kind) { await observe() }
+    }
+
+    private var isPerson: Bool {
+        kind != .genre
+    }
+
+    private func countLine(_ group: LibraryGroup) -> String {
+        let albums = group.albumCount == 1 ? "1 album" : "\(group.albumCount) albums"
+        let songs = group.trackCount == 1 ? "1 song" : "\(group.trackCount) songs"
+        return "\(albums) · \(songs)"
     }
 
     private func observe() async {
@@ -84,7 +94,8 @@ extension LibraryGroup.Kind {
     }
 }
 
-/// Detail page for an artist/genre/composer: their albums plus all tracks.
+/// Detail page for an artist/genre/composer: an artwork hero that fades into the page,
+/// Play / Shuffle, an album shelf and the songs.
 struct GroupDetailView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
@@ -93,71 +104,142 @@ struct GroupDetailView: View {
 
     @State private var albums: [Album] = []
     @State private var tracks: [Track] = []
-    @State private var sheetRequest: TrackSheetRequest?
 
-    private let columns = [GridItem(.adaptive(minimum: 140, maximum: 200), spacing: 14)]
+    private static let songPreviewCount = 12
+
+    #if os(iOS)
+    private let heroHeight: CGFloat = 400
+    #else
+    private let heroHeight: CGFloat = 300
+    #endif
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 16) {
-                    ArtworkImage(artworkKey: group.artworkKey, cornerRadius: MuurTheme.radiusCard, size: 400)
-                        .frame(width: 110, height: 110)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(group.displayName)
-                            .font(.title3.weight(.bold))
-                        Text("\(group.trackCount) songs • \(group.albumCount) albums • \(MuurFormat.longDuration(group.duration))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 16)
+            VStack(alignment: .leading, spacing: 0) {
+                hero
+
+                PlayShuffleButtons(play: { model.play(tracks) }, shuffle: { model.play(tracks, shuffle: true) })
+                    .disabled(tracks.isEmpty)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 4)
+                    .padding(.bottom, 28)
 
                 if !albums.isEmpty {
-                    Text("Albums")
-                        .font(.headline)
-                        .padding(.horizontal, 16)
-                    LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(albums) { album in
-                            NavigationLink(value: album) {
-                                AlbumCard(album: album)
+                    sectionTitle("Albums")
+                    ScrollView(.horizontal) {
+                        LazyHStack(alignment: .top, spacing: 14) {
+                            ForEach(albums) { album in
+                                NavigationLink(value: album) {
+                                    AlbumCard(album: album)
+                                        .frame(width: 160)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
+                        .padding(.horizontal, 20)
                     }
-                    .padding(.horizontal, 16)
+                    .scrollIndicators(.hidden)
+                    .padding(.bottom, 28)
                 }
 
-                Text("Songs")
-                    .font(.headline)
-                    .padding(.horizontal, 16)
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(tracks.enumerated()), id: \.element.stableID) { index, track in
-                        TrackRowView(track: track)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 4)
-                            .onTapGesture {
-                                model.play(tracks, startIndex: index)
+                if !tracks.isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
+                        sectionTitle("Songs")
+                        Spacer()
+                        if tracks.count > Self.songPreviewCount {
+                            NavigationLink {
+                                SongsView(filter: .group(group.kind, group.name), title: group.displayName)
+                            } label: {
+                                Text("See All")
+                                    .font(.body)
+                                    .foregroundStyle(.tint)
                             }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 20)
+                        }
+                    }
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(tracks.prefix(Self.songPreviewCount).enumerated()), id: \.element.stableID) { index, track in
+                            TrackRowView(track: track, subtitleOverride: track.displayAlbum)
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 6)
+                                .onTapGesture {
+                                    model.play(tracks, startIndex: index)
+                                }
+                            if index < min(tracks.count, Self.songPreviewCount) - 1 {
+                                Divider()
+                                    .padding(.leading, 78)
+                            }
+                        }
                     }
                 }
             }
-            .padding(.vertical, 12)
+            .padding(.bottom, 32)
         }
-        .muurScreen()
-        .navigationTitle(group.displayName)
         #if os(iOS)
+        .ignoresSafeArea(.container, edges: .top)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            // The name is already on the hero; keep the bar clear over the artwork.
+            ToolbarItem(placement: .principal) { Text("") }
+        }
         #endif
+        .navigationTitle(group.displayName)
         .navigationDestination(for: Album.self) { album in
             AlbumDetailView(album: album)
         }
-        .sheet(item: $sheetRequest) { request in
-            TrackSheetHost(request: request)
-        }
         .task(id: group.id) { await observe() }
+    }
+
+    private var hero: some View {
+        ArtworkImage(artworkKey: group.artworkKey, cornerRadius: 0, size: 1000)
+            .frame(maxWidth: .infinity)
+            .frame(height: heroHeight)
+            .clipped()
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        .init(color: .clear, location: 0.45),
+                        .init(color: Color.muurBackground.opacity(0.85), location: 0.85),
+                        .init(color: Color.muurBackground, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(group.displayName)
+                        .font(.largeTitle.bold())
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
+                    Text(summaryLine)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            .accessibilityElement(children: .combine)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.title2.bold())
+            .padding(.horizontal, 20)
+            .padding(.bottom, 10)
+    }
+
+    private var summaryLine: String {
+        var parts: [String] = []
+        switch group.kind {
+        case .artist, .albumArtist: parts.append("Artist")
+        case .genre: parts.append("Genre")
+        case .composer: parts.append("Composer")
+        }
+        parts.append(group.albumCount == 1 ? "1 album" : "\(group.albumCount) albums")
+        parts.append(MuurFormat.longDuration(group.duration))
+        return parts.joined(separator: " · ")
     }
 
     private func observe() async {

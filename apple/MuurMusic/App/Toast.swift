@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// A short message shown at the bottom of the screen (errors, confirmations).
+/// A short message shown at the top of the screen (errors, confirmations).
 struct MuurToast: Equatable, Identifiable {
     let id = UUID()
     var message: String
@@ -20,43 +20,41 @@ struct MuurToast: Equatable, Identifiable {
     }
 }
 
-/// Presents a toast at the bottom edge; auto-dismisses.
+/// Presents a toast as a glass capsule below the top edge; auto-dismisses. The top edge keeps it
+/// clear of the tab bar and the mini player.
 struct ToastOverlay: ViewModifier {
     @Binding var toast: MuurToast?
-    @Environment(\.colorScheme) private var scheme
 
     func body(content: Content) -> some View {
-        content.overlay(alignment: .bottom) {
+        content.overlay(alignment: .top) {
             if let toast {
                 HStack(spacing: 10) {
                     Image(systemName: toast.systemImage)
-                        .foregroundStyle(toast.isError ? MuurTheme.danger : MuurTheme.accentAmber)
+                        .foregroundStyle(toast.isError ? AnyShapeStyle(MuurTheme.danger) : AnyShapeStyle(.tint))
                     Text(toast.message)
-                        .font(.subheadline)
-                        .foregroundStyle(scheme.muur.textPrimary)
+                        .font(.subheadline.weight(.medium))
                         .lineLimit(3)
                         .multilineTextAlignment(.leading)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(scheme.muur.bgElevated, in: Capsule())
-                .overlay(Capsule().strokeBorder(scheme.muur.bgHighlight, lineWidth: 1))
-                .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .muurGlass(in: Capsule())
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
                 .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .padding(.top, 4)
+                .transition(.move(edge: .top).combined(with: .opacity))
                 .onTapGesture {
                     withAnimation { self.toast = nil }
                 }
                 .task(id: toast.id) {
-                    try? await Task.sleep(nanoseconds: 3_500_000_000)
+                    try? await Task.sleep(nanoseconds: 3_000_000_000)
                     guard !Task.isCancelled else { return }
                     withAnimation { self.toast = nil }
                 }
                 .accessibilityLabel(toast.message)
             }
         }
-        .animation(.spring(response: 0.35), value: toast)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: toast)
     }
 }
 

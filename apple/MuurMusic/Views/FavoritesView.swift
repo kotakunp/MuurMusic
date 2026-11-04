@@ -18,7 +18,8 @@ struct FavoritesView: View {
                 EmptyStateView(
                     illustration: .library,
                     title: "No favorites yet",
-                    message: "Tap the heart on any song and it curls up here. The cat approves."
+                    message: "Tap the heart on any song and it curls up here. The cat approves.",
+                    systemImage: "heart"
                 )
             } else {
                 List {
@@ -34,7 +35,6 @@ struct FavoritesView: View {
                 #endif
             }
         }
-        .muurScreen()
         .navigationTitle("Favorites")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

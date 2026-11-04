@@ -126,7 +126,6 @@ struct WiFiTransferView: View {
             }
         }
         .formStyle(.grouped)
-        .muurScreen()
         .navigationTitle("Wi-Fi Transfer")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

@@ -40,7 +40,6 @@ struct FilesView: View {
                 #endif
             }
         }
-        .muurScreen()
         .navigationTitle("Files")
         .navigationDestination(for: SourceConfig.self) { config in
             FileBrowserView(config: config)
@@ -73,7 +72,6 @@ struct FileBrowserView: View {
                 LoadingView(message: "Connecting…")
             }
         }
-        .muurScreen()
         .navigationTitle(config.name)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

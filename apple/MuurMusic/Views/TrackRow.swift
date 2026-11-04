@@ -48,42 +48,71 @@ struct TrackRowView: View {
     @State private var sheetRequest: TrackSheetRequest?
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             if let index {
-                Text("\(index)")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-                    .frame(width: 22, alignment: .trailing)
-            }
-            if showsArtwork {
-                ArtworkImage(artworkKey: track.artworkKey, cornerRadius: 6, size: 120)
-                    .frame(width: 40, height: 40)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(track.displayTitle)
-                        .font(.body)
-                        .lineLimit(1)
-                        .foregroundStyle(isCurrent ? Color(hex: model.settings.accent.hex) : .primary)
-                    FormatBadge(track: track)
-                    if showsFavorite && track.favorite {
-                        Image(systemName: "heart.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(MuurTheme.accentAmber)
-                            .accessibilityLabel("Favorite")
+                ZStack {
+                    if isCurrent {
+                        NowPlayingIndicator()
+                    } else {
+                        Text("\(index)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
                     }
                 }
-                Text(subtitleOverride ?? defaultSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                .frame(width: 24)
             }
-            Spacer(minLength: 8)
-            Text(MuurFormat.duration(track.duration))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
+            if showsArtwork {
+                ArtworkImage(artworkKey: track.artworkKey, cornerRadius: MuurTheme.radiusRow, size: 120)
+                    .frame(width: 46, height: 46)
+                    .overlay {
+                        if isCurrent && index == nil {
+                            RoundedRectangle(cornerRadius: MuurTheme.radiusRow, style: .continuous)
+                                .fill(.black.opacity(0.4))
+                            NowPlayingIndicator()
+                                .foregroundStyle(.white)
+                        }
+                    }
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(track.displayTitle)
+                    .font(.body)
+                    .lineLimit(1)
+                    .foregroundStyle(isCurrent ? AnyShapeStyle(.tint) : AnyShapeStyle(.primary))
+                let subtitle = subtitleOverride ?? defaultSubtitle
+                let showsHeart = showsFavorite && track.favorite
+                if !subtitle.isEmpty || showsHeart || (track.isHiRes && model.settings.showHiResBadges) {
+                    HStack(spacing: 5) {
+                        if showsHeart {
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tint)
+                                .accessibilityLabel("Favorite")
+                        }
+                        FormatBadge(track: track)
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            Spacer(minLength: 4)
+            Menu {
+                TrackContextMenu(tracks: [track], sheet: $sheetRequest)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 36)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .accessibilityLabel("More actions")
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 1)
         .contentShape(Rectangle())
         .contextMenu { TrackContextMenu(tracks: [track], sheet: $sheetRequest) }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -92,7 +121,7 @@ struct TrackRowView: View {
             } label: {
                 Label("Play Next", systemImage: "text.line.first.and.arrowtriangle.forward")
             }
-            .tint(MuurTheme.accentViolet)
+            .tint(.indigo)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if let onRemove {
@@ -106,7 +135,7 @@ struct TrackRowView: View {
             } label: {
                 Label(track.favorite ? "Unfavorite" : "Favorite", systemImage: track.favorite ? "heart.slash" : "heart.fill")
             }
-            .tint(MuurTheme.accentAmber)
+            .tint(.pink)
         }
         .sheet(item: $sheetRequest) { request in
             TrackSheetHost(request: request)
@@ -118,7 +147,20 @@ struct TrackRowView: View {
     }
 
     private var defaultSubtitle: String {
-        "\(track.displayArtist) — \(track.displayAlbum)"
+        "\(track.displayArtist) · \(track.displayAlbum)"
+    }
+}
+
+/// Animated bars marking the row of the track that is playing.
+struct NowPlayingIndicator: View {
+    @EnvironmentObject var player: PlaybackController
+
+    var body: some View {
+        Image(systemName: "waveform")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.tint)
+            .symbolEffect(.variableColor.iterative.dimInactiveLayers, options: .repeating, isActive: player.isPlaying)
+            .accessibilityLabel("Now playing")
     }
 }
 
