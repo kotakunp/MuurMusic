@@ -44,7 +44,8 @@ final class LRCParserTests: XCTestCase {
         let lyrics = LRCParser.parse(text)
         XCTAssertFalse(lyrics.isSynced)
         XCTAssertNil(lyrics.lines[0].time)
-        XCTAssertEqual(lyrics.plainText, "First line\nSecond line")
+        // Interior blank lines are stanza breaks and are kept; only leading/trailing ones are trimmed.
+        XCTAssertEqual(lyrics.plainText, "First line\n\nSecond line")
     }
 
     func testIndexAtTimeUsesLastLineAtOrBefore() {

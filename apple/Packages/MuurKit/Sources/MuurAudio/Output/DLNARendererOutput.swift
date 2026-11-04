@@ -33,7 +33,8 @@ public final class DLNARenderer: Sendable {
     }
 
     public static func load(from descriptionURL: URL, http: HTTPClient = .shared) async throws -> DLNARenderer {
-        try DLNARenderer(device: UPnPDevice.load(from: descriptionURL, http: http), http: http)
+        let device = try await UPnPDevice.load(from: descriptionURL, http: http)
+        return try DLNARenderer(device: device, http: http)
     }
 
     /// Points the renderer at an audio URL with DIDL-Lite metadata, then starts playback.

@@ -90,7 +90,7 @@ final class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegat
             if !playlists.isEmpty {
                 let items = playlists.prefix(24).map { playlist -> CPListItem in
                     let item = CPListItem(text: playlist.name, detailText: playlist.isSmart ? "Smart playlist" : nil)
-                    item.handler = { _, completion in
+                    item.handler = { [weak self] _, completion in
                         Task { @MainActor in
                             await self?.playPlaylist(playlist)
                             completion()

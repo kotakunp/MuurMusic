@@ -82,6 +82,6 @@ final class AudioPresetFormatTests: XCTestCase {
         XCTAssertEqual(DSPNodeType.allCases.count, 22)
         XCTAssertTrue(DSPNodeType.allCases.contains(.reverb))
         XCTAssertTrue(DSPNodeType.allCases.contains(.compressor))
-        XCTAssertTrue(DSPNodeType.allCases.contains(.loudnessContour))
+        XCTAssertTrue(DSPNodeType.allCases.contains(.crossfeed))
     }
 }

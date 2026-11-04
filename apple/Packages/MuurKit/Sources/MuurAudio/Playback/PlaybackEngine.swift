@@ -63,19 +63,20 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
             band.bypass = false
         }
         let buffer = tapBuffer
-        player.modifyProcessingGraph { engine in
+        let audioPlayer = player
+        audioPlayer.modifyProcessingGraph { engine in
             engine.attach(pitch)
             engine.attach(eq)
             engine.attach(dsp.effect)
             // The player initially connects sourceNode straight to the mixer; remove that connection
             // before inserting the chain, or the source would fan out to both paths.
-            engine.disconnectNodeOutput(player.sourceNode)
-            engine.connect(player.sourceNode, to: pitch, format: nil)
+            engine.disconnectNodeOutput(audioPlayer.sourceNode)
+            engine.connect(audioPlayer.sourceNode, to: pitch, format: nil)
             engine.connect(pitch, to: eq, format: nil)
             engine.connect(eq, to: dsp.effect, format: nil)
-            engine.connect(dsp.effect, to: player.mainMixerNode, format: nil)
-            player.mainMixerNode.removeTap(onBus: 0)
-            player.mainMixerNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { pcmBuffer, _ in
+            engine.connect(dsp.effect, to: audioPlayer.mainMixerNode, format: nil)
+            audioPlayer.mainMixerNode.removeTap(onBus: 0)
+            audioPlayer.mainMixerNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { pcmBuffer, _ in
                 buffer.push(pcmBuffer)
             }
         }

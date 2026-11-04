@@ -20,7 +20,7 @@ final class CueSheetTests: XCTestCase {
         let seconds = 62 + 37.0 / 75.0
         XCTAssertEqual(CueSheet.indexString(seconds: seconds), "01:02:37")
         XCTAssertEqual(CueSheet.seconds(fromIndex: CueSheet.indexString(seconds: seconds)) ?? -1, seconds, accuracy: 1e-9)
-        XCTAssertEqual(CueSheet.indexString(seconds: 3661.5), "61:01:37") // 274612.5 frames rounds to 274613
+        XCTAssertEqual(CueSheet.indexString(seconds: 3661.5), "61:01:38") // 274612.5 frames rounds to 274613 = 3661 s + 38 frames
     }
 
     func testParseFullSheet() {

@@ -79,7 +79,8 @@ struct ShuffleFavoritesIntent: AppIntent {
 struct MuurPlaylistEntity: AppEntity {
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Playlist")
 
-    var id: Int64
+    // Int64 is not EntityIdentifierConvertible; playlist row IDs fit in Int on 64-bit platforms.
+    var id: Int
     var name: String
 
     var displayRepresentation: DisplayRepresentation {
@@ -90,7 +91,7 @@ struct MuurPlaylistEntity: AppEntity {
 }
 
 struct MuurPlaylistQuery: EntityQuery {
-    func entities(for identifiers: [Int64]) async throws -> [MuurPlaylistEntity] {
+    func entities(for identifiers: [Int]) async throws -> [MuurPlaylistEntity] {
         await allPlaylists().filter { identifiers.contains($0.id) }
     }
 
@@ -103,7 +104,7 @@ struct MuurPlaylistQuery: EntityQuery {
         guard let model = AppModel.shared else { return [] }
         return model.playlists.compactMap { playlist in
             guard let id = playlist.id else { return nil }
-            return MuurPlaylistEntity(id: id, name: playlist.name)
+            return MuurPlaylistEntity(id: Int(id), name: playlist.name)
         }
     }
 }
@@ -124,7 +125,7 @@ struct PlayPlaylistIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         let model = AppModel.requireShared()
-        if let contents = try await model.environment.playlists.contents(of: playlist.id) {
+        if let contents = try await model.environment.playlists.contents(of: Int64(playlist.id)) {
             model.play(contents.tracks)
         }
         return .result()

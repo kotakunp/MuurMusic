@@ -63,7 +63,7 @@ struct NowPlayingView: View {
     private var backgroundGradient: some View {
         let palette = scheme.muur
         return LinearGradient(
-            colors: [palette.bg, palette.highlight.opacity(0.6), palette.bg],
+            colors: [palette.bg, palette.bgHighlight.opacity(0.6), palette.bg],
             startPoint: .top,
             endPoint: .bottom
         )
@@ -301,9 +301,9 @@ struct NowPlayingView: View {
             volumeSlider
         } else {
             HStack {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "speaker.fill")
                     .foregroundStyle(.secondary)
-                RoutePickerView()
+                SystemVolumeView()
                     .frame(height: 32)
             }
         }

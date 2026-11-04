@@ -115,7 +115,7 @@ struct EffectsView: View {
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json, .data]) { result in
+        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json, .data], allowsMultipleSelection: false) { result in
             handleImport(result)
         }
         .sheet(item: $sharedFile) { file in

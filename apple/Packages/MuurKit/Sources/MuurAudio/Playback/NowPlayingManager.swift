@@ -32,11 +32,11 @@ public final class NowPlayingManager {
         guard !configured else { return }
         configured = true
         let center = MPRemoteCommandCenter.shared()
-        center.playCommand.addTarget { [weak self] _ in self?.fire(onPlay); return .success }
-        center.pauseCommand.addTarget { [weak self] _ in self?.fire(onPause); return .success }
-        center.togglePlayPauseCommand.addTarget { [weak self] _ in self?.fire(onTogglePlayPause); return .success }
-        center.nextTrackCommand.addTarget { [weak self] _ in self?.fire(onNext); return .success }
-        center.previousTrackCommand.addTarget { [weak self] _ in self?.fire(onPrevious); return .success }
+        center.playCommand.addTarget { [weak self] _ in self?.fire(\.onPlay); return .success }
+        center.pauseCommand.addTarget { [weak self] _ in self?.fire(\.onPause); return .success }
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in self?.fire(\.onTogglePlayPause); return .success }
+        center.nextTrackCommand.addTarget { [weak self] _ in self?.fire(\.onNext); return .success }
+        center.previousTrackCommand.addTarget { [weak self] _ in self?.fire(\.onPrevious); return .success }
         center.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let event = event as? MPChangePlaybackPositionCommandEvent, let onSeek = self?.onSeek else { return .commandFailed }
             Task { @MainActor in onSeek(event.positionTime) }

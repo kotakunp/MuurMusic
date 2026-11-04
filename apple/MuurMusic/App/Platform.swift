@@ -80,6 +80,28 @@ extension View {
     }
 }
 
+#if os(macOS)
+/// macOS has no `EditMode`; lists there select and reorder without it. This stand-in keeps the
+/// "Select / Done" state in shared views.
+enum EditMode: Equatable {
+    case inactive, active
+
+    var isEditing: Bool { self == .active }
+}
+#endif
+
+extension View {
+    /// Applies the edit mode to lists on iOS; a no-op on macOS.
+    @ViewBuilder
+    func muurEditMode(_ mode: Binding<EditMode>) -> some View {
+        #if os(iOS)
+        environment(\.editMode, mode)
+        #else
+        self
+        #endif
+    }
+}
+
 /// The current platform trait helper.
 enum PlatformInfo {
     static var isIOS: Bool {

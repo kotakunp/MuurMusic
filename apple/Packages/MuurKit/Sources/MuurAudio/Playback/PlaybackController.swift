@@ -192,7 +192,7 @@ public final class PlaybackController: ObservableObject {
     public func play(_ tracks: [Track], startIndex: Int = 0, shuffle: Bool? = nil) {
         guard !tracks.isEmpty else { return }
         let mode = shuffle.map { $0 ? ShuffleMode.on : ShuffleMode.off } ?? queue.shuffleMode
-        let items = tracks.map(QueueItem.init(track:))
+        let items = tracks.map { QueueItem(track: $0) }
         queue = PlaybackQueue(items: items, startIndex: min(max(0, startIndex), items.count - 1), shuffleMode: mode,
                               repeatMode: queue.repeatMode)
         finishTrackForHistory(skipped: false)
@@ -213,7 +213,7 @@ public final class PlaybackController: ObservableObject {
 
     public func playNext(_ tracks: [Track]) {
         guard !tracks.isEmpty else { return }
-        queue.insertNext(tracks.map(QueueItem.init(track:)))
+        queue.insertNext(tracks.map { QueueItem(track: $0) })
         scheduleQueueSave()
         prefetchUpcoming()
     }
@@ -221,7 +221,7 @@ public final class PlaybackController: ObservableObject {
     public func addToQueue(_ tracks: [Track]) {
         guard !tracks.isEmpty else { return }
         let wasEmpty = queue.isEmpty
-        queue.append(tracks.map(QueueItem.init(track:)))
+        queue.append(tracks.map { QueueItem(track: $0) })
         scheduleQueueSave()
         if wasEmpty && state == .stopped { startCurrent(at: 0) }
     }
@@ -773,7 +773,8 @@ public final class PlaybackController: ObservableObject {
         Task { [weak self] in
             guard let self else { return }
             let recent = (try? await self.environment.repository.recentlyPlayed(limit: 10)) ?? []
-            let lyrics = track.flatMap { await self.environment.lyrics.lyrics(for: $0, allowOnline: false) }
+            var lyrics: Lyrics?
+            if let track { lyrics = await self.environment.lyrics.lyrics(for: track, allowOnline: false) }
             self.widgetWriter.publish(nowPlaying: track, isPlaying: playing, elapsed: elapsed, playbackRate: rate,
                                       upNext: upNext, recentlyPlayed: recent, lyrics: lyrics,
                                       accentHex: self.settings.accent.hex, canResume: !self.queue.isEmpty)

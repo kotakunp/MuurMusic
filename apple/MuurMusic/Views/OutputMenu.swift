@@ -2,10 +2,10 @@ import SwiftUI
 import MuurCore
 import MuurAudio
 #if os(iOS)
-import AVKit
+import MediaPlayer
 #endif
 
-/// Output picker: system route picker (iOS) plus DLNA renderer discovery.
+/// Output picker: this device or a discovered DLNA renderer.
 struct OutputMenu: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
@@ -52,15 +52,16 @@ struct OutputMenu: View {
         } label: {
             Image(systemName: outputIcon)
         }
-        .accessibilityLabel("Audio output")
+        .accessibilityLabel("DLNA output")
         .task { refresh() }
     }
 
     private var outputIcon: String {
+        // Not the AirPlay glyph: this menu only switches between this device and DLNA renderers.
         if case .dlna = player.output {
-            return "hifispeaker.fill"
+            return "hifispeaker.2.fill"
         }
-        return "airplayaudio"
+        return "hifispeaker.2"
     }
 
     private func isCurrent(_ renderer: DLNARenderer) -> Bool {
@@ -80,16 +81,16 @@ struct OutputMenu: View {
 }
 
 #if os(iOS)
-/// Wraps AVRoutePickerView for AirPlay / Bluetooth output selection.
-struct RoutePickerView: UIViewRepresentable {
-    func makeUIView(context: Context) -> AVRoutePickerView {
-        let picker = AVRoutePickerView()
-        picker.prioritizesVideoDevices = false
-        picker.tintColor = UIColor(Color.secondary)
-        picker.activeTintColor = UIColor(MuurTheme.accentAmber)
-        return picker
+/// The system volume slider with its AirPlay / Bluetooth route button. iOS apps cannot change the
+/// device volume directly, so local playback uses this instead of a SwiftUI slider.
+/// The Simulator renders it empty; it only appears on a device.
+struct SystemVolumeView: UIViewRepresentable {
+    func makeUIView(context: Context) -> MPVolumeView {
+        let view = MPVolumeView()
+        view.tintColor = UIColor(MuurTheme.accentAmber)
+        return view
     }
 
-    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
 }
 #endif

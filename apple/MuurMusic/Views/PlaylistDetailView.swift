@@ -104,7 +104,7 @@ struct PlaylistDetailView: View {
         #if os(iOS)
         .listStyle(.plain)
         #endif
-        .environment(\.editMode, $editMode)
+        .muurEditMode($editMode)
     }
 
     private func move(from source: IndexSet, to destination: Int) {

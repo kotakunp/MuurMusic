@@ -43,7 +43,7 @@ struct SettingsView: View {
         .muurScreen()
         .navigationTitle("Settings")
         .fileImporter(isPresented: $isPickingFolder, allowedContentTypes: [.folder]) { result in
-            if case .success(let urls) = result, let url = urls.first {
+            if case .success(let url) = result {
                 addFolder(url)
             }
         }

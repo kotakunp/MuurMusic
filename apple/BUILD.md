@@ -34,27 +34,26 @@ xcodebuild build -project MuurMusic.xcodeproj -scheme MuurMusic \
 That is exactly what CI (`.github/workflows/apple.yml`) runs. Regenerate the
 project after adding or removing files: `xcodegen generate` again.
 
-## Current status (continue here on a Mac)
+## Current status
 
-The Apple code was written on Windows without a Swift compiler, and the only
-compile checks so far ran in GitHub Actions:
+Checked on a Mac (Xcode 27.2, Swift 6.4):
 
-- `xcodegen generate` works.
-- CI round 2 found 4 compile errors in MuurKit (`DownloadManager.swift`,
-  `FTPSource.swift`, `S3Source.swift`); they are fixed in commit `8c09e42`.
-  CI never got past MuurKit, so the app (`MuurMusic/`) and widget
-  (`MuurWidgets/`) sources have not been compiled yet. Expect more errors there.
-- None of it has been run yet: not in the Simulator, not on a device.
+- `swift build` and `swift test` in `Packages/MuurKit` pass (38 tests).
+- The **MuurMusic** scheme (app + widgets) builds for `generic/platform=iOS Simulator`
+  and `generic/platform=macOS` with the exact CI commands above.
+- iOS Simulator: the app launches, scans FLAC / ALAC / WAV files dropped into its
+  Documents folder (format badges correct), plays them and advances through the
+  queue; the mini player and Now Playing screen work.
+- macOS: the app launches and stays up (unsigned build, so no sandbox or app group).
 
-Suggested order on the Mac:
+Not tested yet:
 
-1. `cd apple/Packages/MuurKit && swift build && swift test`, and fix until green.
-2. `cd apple && xcodegen generate`, open the project, and build the
-   **MuurMusic** scheme for an iOS Simulator and for My Mac. Fix errors.
-3. Remove the CarPlay key from `MuurMusic/MuurMusic-iOS.entitlements`
-   (see below), pick your team under Signing, and run on your iPhone.
-4. Smoke-test: add a folder of music, play FLAC/ALAC, gapless album, EQ preset,
-   lock-screen controls, a widget, Wi-Fi transfer upload.
+1. Run on an iPhone: remove the CarPlay key from
+   `MuurMusic/MuurMusic-iOS.entitlements` (see below) and pick your team under Signing.
+   The Now Playing volume slider (`MPVolumeView`) only appears on a device.
+2. Smoke-test on device / signed Mac build: gapless album, EQ preset, lock-screen
+   controls, widgets, Wi-Fi transfer upload, network sources and SSDP/Bonjour
+   discovery (needs the multicast entitlement on macOS).
 
 ## Secrets (optional cloud sources)
 

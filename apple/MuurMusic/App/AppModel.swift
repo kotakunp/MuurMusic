@@ -103,8 +103,6 @@ final class AppModel: ObservableObject {
     // Recent searches
     @Published private(set) var recentSearches: [String] = []
 
-    private var cancellables: Set<AnyCancellable> = []
-
     init() {
         let booted: MuurEnvironment
         if let environment = try? MuurEnvironment.bootstrap() {

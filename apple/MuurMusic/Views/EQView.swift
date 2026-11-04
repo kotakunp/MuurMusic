@@ -69,7 +69,7 @@ struct EQView: View {
             Button("Save") { savePreset() }
             Button("Cancel", role: .cancel) {}
         }
-        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json, .data]) { result in
+        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.json, .data], allowsMultipleSelection: false) { result in
             handleImport(result)
         }
         .sheet(item: $sharedFile) { file in

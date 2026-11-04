@@ -155,7 +155,7 @@ struct FileListView: View {
                 #endif
             }
         }
-        .environment(\.editMode, $editMode)
+        .muurEditMode($editMode)
         .toolbar { toolbarContent }
         .alert("New Folder", isPresented: $isCreatingFolder) {
             TextField("Folder name", text: $newFolderName)

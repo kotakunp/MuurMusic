@@ -146,7 +146,7 @@ struct MusicBrainzLookupView: View {
                 )
                 error = nil
             } catch {
-                error = error.localizedDescription
+                self.error = error.localizedDescription
             }
             isLoading = false
         }
