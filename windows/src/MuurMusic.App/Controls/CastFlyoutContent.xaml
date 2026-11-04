@@ -1,0 +1,38 @@
+<UserControl
+    x:Class="MuurMusic.App.Controls.CastFlyoutContent"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Width="340">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Cast to a device" FontSize="16" FontWeight="SemiBold" />
+        <Border x:Name="ActiveCastBanner" Background="{ThemeResource MuurHighlightBrush}" CornerRadius="{StaticResource MuurRadiusRow}" Padding="10" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE8BF;" Foreground="{ThemeResource MuurAccentBrush}" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left">
+                    <TextBlock Text="Casting to" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                    <TextBlock x:Name="ActiveCastName" FontWeight="SemiBold" />
+                </StackPanel>
+                <Button Content="Stop" Click="DisconnectCast_Click" HorizontalAlignment="Right" Margin="12,0,0,0" AutomationProperties.Name="Stop casting" />
+            </StackPanel>
+        </Border>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Find devices" Click="Discover_Click" AutomationProperties.Name="Find cast devices" />
+            <controls:PawLoadingIndicator x:Name="CastPaws" PawSize="14" IsActive="False" />
+        </StackPanel>
+        <ListView x:Name="DeviceList" MaxHeight="260" SelectionMode="None" IsItemClickEnabled="True" ItemClick="DeviceList_ItemClick" AutomationProperties.Name="Cast devices">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Padding="0,4">
+                        <FontIcon Glyph="&#xE8BF;" VerticalAlignment="Center" />
+                        <StackPanel>
+                            <TextBlock Text="{Binding Name}" />
+                            <TextBlock Text="{Binding Transport}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                        </StackPanel>
+                    </StackPanel>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock x:Name="NoDevicesText" Text="No devices found yet — tap Find devices. Chromecast and DLNA renderers on your network show up here." Style="{StaticResource MuurSecondaryText}" TextWrapping="Wrap" />
+    </StackPanel>
+</UserControl>

@@ -1,0 +1,42 @@
+<Page
+    x:Class="MuurMusic.App.Views.VisualizerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <Grid Margin="24,16,24,0" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <TextBlock Text="Visualizer" Style="{StaticResource MuurPageTitle}" VerticalAlignment="Center" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12" VerticalAlignment="Center">
+                <ToggleSwitch Header="Auto-cycle" IsOn="{x:Bind ViewModel.AutoCycle, Mode=TwoWay}" AutomationProperties.Name="Auto-cycle presets" />
+                <NumberBox Header="Seconds" Value="{x:Bind ViewModel.AutoCycleSeconds, Mode=TwoWay}" Minimum="5" Maximum="300" Width="130" SpinButtonPlacementMode="Inline" AutomationProperties.Name="Auto-cycle seconds" />
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="1" CornerRadius="{StaticResource MuurRadiusCard}">
+            <Border Background="{ThemeResource MuurElevatedBrush}" CornerRadius="{StaticResource MuurRadiusCard}" Padding="12">
+                <controls:VisualizerControl x:Name="Visualizer" Preset="{x:Bind ViewModel.Preset, Mode=OneWay}" />
+            </Border>
+        </Grid>
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Preset:" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" />
+                <ComboBox x:Name="PresetBox" Width="190" SelectionChanged="PresetBox_SelectionChanged" AutomationProperties.Name="Visualizer preset" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                <ProgressBar Value="{x:Bind ViewModel.PeakLeft, Mode=OneWay}" Minimum="0" Maximum="1" Width="150" AutomationProperties.Name="Left channel peak" />
+                <ProgressBar Value="{x:Bind ViewModel.PeakRight, Mode=OneWay}" Minimum="0" Maximum="1" Width="150" AutomationProperties.Name="Right channel peak" />
+            </StackPanel>
+            <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.OutputInfo, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" MaxWidth="320" TextTrimming="CharacterEllipsis" />
+        </Grid>
+    </Grid>
+</Page>

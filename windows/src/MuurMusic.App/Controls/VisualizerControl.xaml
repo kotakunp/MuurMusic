@@ -1,0 +1,12 @@
+<UserControl
+    x:Class="MuurMusic.App.Controls.VisualizerControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:canvas="using:Microsoft.Graphics.Canvas.UI.Xaml">
+    <canvas:CanvasAnimatedControl x:Name="Canvas"
+                                  Update="Canvas_Update"
+                                  Draw="Canvas_Draw"
+                                  Loaded="Canvas_Loaded"
+                                  Unloaded="Canvas_Unloaded"
+                                  ClearColor="Transparent" />
+</UserControl>

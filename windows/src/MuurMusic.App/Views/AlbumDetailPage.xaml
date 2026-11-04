@@ -1,0 +1,55 @@
+<Page
+    x:Class="MuurMusic.App.Views.AlbumDetailPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <ScrollViewer Padding="0,0,0,120">
+        <Grid Margin="24,16,24,0" RowSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Width="200" Height="200" CornerRadius="{StaticResource MuurRadiusArtwork}" Background="{ThemeResource MuurHighlightBrush}">
+                    <Image Stretch="UniformToFill">
+                        <Image.Source>
+                            <BitmapImage UriSource="{x:Bind ViewModel.ArtworkPath, Mode=OneWay, Converter={StaticResource PathOrDefaultArt}}" DecodePixelWidth="400" />
+                        </Image.Source>
+                    </Image>
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Bottom" Spacing="6">
+                    <TextBlock Text="Album" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="30" FontWeight="Bold" TextWrapping="Wrap" />
+                    <TextBlock Text="{x:Bind ViewModel.Artist, Mode=OneWay}" FontSize="15" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border x:Name="HiResBadge" Background="{ThemeResource MuurAccentBrush}" CornerRadius="4" Padding="5,1"
+                                Visibility="{x:Bind ViewModel.IsHiRes, Mode=OneWay}">
+                            <TextBlock Text="Hi-Res" FontSize="10" FontWeight="Bold" Foreground="{ThemeResource MuurBackgroundBrush}" />
+                        </Border>
+                        <TextBlock Text="{x:Bind ViewModel.Subtitle, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <Button Style="{StaticResource MuurAccentButton}" Click="Play_Click" AutomationProperties.Name="Play album">
+                            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="13" /><TextBlock Text="Play" /></StackPanel>
+                        </Button>
+                        <Button Click="Shuffle_Click" AutomationProperties.Name="Shuffle album">
+                            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8B1;" FontSize="13" /><TextBlock Text="Shuffle" /></StackPanel>
+                        </Button>
+                        <Button Click="Enqueue_Click" AutomationProperties.Name="Add album to queue">
+                            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE8FD;" FontSize="13" /><TextBlock Text="Queue" /></StackPanel>
+                        </Button>
+                        <Button Click="Download_Click" AutomationProperties.Name="Download album for offline">
+                            <FontIcon Glyph="&#xE896;" FontSize="13" />
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+            <controls:TrackRowsControl Grid.Row="1" x:Name="TrackRows" PlayRequested="TrackRows_PlayRequested" />
+        </Grid>
+    </ScrollViewer>
+</Page>

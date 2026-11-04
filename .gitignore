@@ -18,6 +18,12 @@ obj/
 .vs/
 TestResults/
 artifacts/
+publish/
+*.log
+
+# Local scratch from build/launch checks
+windows/shot-*.png
+windows/scripts-shot.ps1
 
 # Secrets (local OAuth client IDs etc.)
 apple/Secrets.xcconfig

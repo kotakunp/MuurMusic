@@ -1,0 +1,168 @@
+<Page
+    x:Class="MuurMusic.App.Views.NowPlayingPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <Grid Margin="28,20,28,8" ColumnSpacing="28">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" />
+            <ColumnDefinition Width="2*" />
+        </Grid.ColumnDefinitions>
+        <!-- Artwork / vinyl / visualizer stage -->
+        <Grid>
+            <!-- Artwork style -->
+            <Grid Visibility="{x:Bind ViewModel.ShowArtworkStyle, Mode=OneWay}">
+                <Border MaxWidth="480" MaxHeight="480" CornerRadius="{StaticResource MuurRadiusArtwork}" Background="{ThemeResource MuurElevatedBrush}"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Image Stretch="UniformToFill">
+                        <Image.Source>
+                            <BitmapImage UriSource="{x:Bind ViewModel.ArtworkPath, Mode=OneWay, Converter={StaticResource PathOrDefaultArt}}" DecodePixelWidth="800" />
+                        </Image.Source>
+                    </Image>
+                </Border>
+            </Grid>
+            <!-- Vinyl style -->
+            <Grid Visibility="{x:Bind ViewModel.ShowVinylStyle, Mode=OneWay}">
+                <Grid MaxWidth="480" MaxHeight="480" VerticalAlignment="Center" HorizontalAlignment="Center" SizeChanged="VinylStage_SizeChanged">
+                    <Grid.RenderTransform>
+                        <RotateTransform x:Name="VinylRotation" CenterX="240" CenterY="240" Angle="0" />
+                    </Grid.RenderTransform>
+                    <Ellipse Fill="#FF17141F" Stroke="{ThemeResource MuurHighlightBrush}" StrokeThickness="2" />
+                    <Ellipse Width="60%" Height="60%" Fill="Transparent" Stroke="#22FFFFFF" StrokeThickness="1" />
+                    <Ellipse Width="44%" Height="44%" Fill="Transparent" Stroke="#22FFFFFF" StrokeThickness="1" />
+                    <Ellipse Width="30%" Height="30%" Fill="Transparent" Stroke="#22FFFFFF" StrokeThickness="1" />
+                    <Border Width="34%" Height="34%" CornerRadius="240">
+                        <Image Stretch="UniformToFill">
+                            <Image.Source>
+                                <BitmapImage UriSource="{x:Bind ViewModel.ArtworkPath, Mode=OneWay, Converter={StaticResource PathOrDefaultArt}}" DecodePixelWidth="320" />
+                            </Image.Source>
+                        </Image>
+                    </Border>
+                    <Ellipse Width="4%" Height="4%" Fill="{ThemeResource MuurBackgroundBrush}" />
+                </Grid>
+            </Grid>
+            <!-- Visualizer style -->
+            <Grid Visibility="{x:Bind ViewModel.ShowVisualizerStyle, Mode=OneWay}">
+                <Border Background="{ThemeResource MuurElevatedBrush}" CornerRadius="{StaticResource MuurRadiusArtwork}" Padding="16">
+                    <controls:VisualizerControl Preset="CircleSpectrum" />
+                </Border>
+            </Grid>
+            <!-- Nothing playing -->
+            <StackPanel Visibility="{x:Bind ViewModel.HasTrack, Mode=OneWay, Converter={StaticResource InverseBool}}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <Image Source="/Assets/empty-library.png" Width="260" />
+                <TextBlock Text="Pick something to play" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+        <!-- Right rail: metadata, style picker, lyrics, up next -->
+        <Grid Grid.Column="1" RowSpacing="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel Spacing="2">
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" FontSize="26" FontWeight="Bold" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{x:Bind ViewModel.ArtistAlbum, Mode=OneWay}" FontSize="15" Foreground="{ThemeResource MuurAccentTextBrush}" TextTrimming="CharacterEllipsis" />
+                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                    <Border Background="{ThemeResource MuurHighlightBrush}" CornerRadius="4" Padding="6,2" Visibility="{x:Bind ViewModel.HasTrack, Mode=OneWay}">
+                        <TextBlock Text="{x:Bind ViewModel.QualityBadge, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock Text="Style:" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" />
+                <ComboBox x:Name="StyleBox" Width="140" SelectionChanged="StyleBox_SelectionChanged" AutomationProperties.Name="Now playing style">
+                    <ComboBoxItem Content="Artwork" />
+                    <ComboBoxItem Content="Vinyl" />
+                    <ComboBoxItem Content="Visualizer" />
+                </ComboBox>
+            </StackPanel>
+            <!-- Lyrics -->
+            <Grid Grid.Row="2" RowSpacing="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <TextBlock Text="Lyrics" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="6">
+                        <Button Style="{StaticResource MuurIconButtonStyle}" Click="OffsetDown_Click" ToolTipService.ToolTip="Lyrics earlier by 100 ms" AutomationProperties.Name="Lyrics earlier">
+                            <FontIcon Glyph="&#xE892;" FontSize="12" />
+                        </Button>
+                        <TextBlock Text="{x:Bind ViewModel.OffsetMs, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" MinWidth="52" TextAlignment="Center" />
+                        <Button Style="{StaticResource MuurIconButtonStyle}" Click="OffsetUp_Click" ToolTipService.ToolTip="Lyrics later by 100 ms" AutomationProperties.Name="Lyrics later">
+                            <FontIcon Glyph="&#xE893;" FontSize="12" />
+                        </Button>
+                        <Button Click="FindOnline_Click" AutomationProperties.Name="Find lyrics online">
+                            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE721;" FontSize="12" /><TextBlock Text="Find lyrics" /></StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+                <Grid Grid.Row="1">
+                    <ListView x:Name="LyricsList"
+                              ItemsSource="{x:Bind ViewModel.Lines, Mode=OneWay}"
+                              SelectionMode="None" IsItemClickEnabled="True" ItemClick="LyricsList_ItemClick"
+                              AutomationProperties.Name="Synced lyrics">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="Padding" Value="6,6" />
+                                <Setter Property="MinHeight" Value="0" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vms:LyricLineViewModel">
+                                <TextBlock Text="{x:Bind Text}" FontSize="15"
+                                           FontWeight="{x:Bind Weight, Mode=OneWay}"
+                                           Foreground="{x:Bind Foreground, Mode=OneWay}"
+                                           TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                    <ScrollViewer Visibility="{x:Bind ViewModel.ShowPlainLyrics, Mode=OneWay}" Padding="6">
+                        <TextBlock Text="{x:Bind ViewModel.PlainLyrics, Mode=OneWay}" TextWrapping="Wrap" FontSize="14" LineHeight="24" />
+                    </ScrollViewer>
+                    <StackPanel Visibility="{x:Bind ViewModel.ShowNoLyrics, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="320">
+                        <controls:PawLoadingIndicator PawSize="20" Visibility="{x:Bind ViewModel.IsLoadingLyrics, Mode=OneWay}" />
+                        <TextBlock Text="{x:Bind ViewModel.LyricsStatus, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" TextAlignment="Center" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+            <!-- Up next -->
+            <StackPanel Grid.Row="3" Spacing="6">
+                <TextBlock Text="Up next" FontSize="15" FontWeight="SemiBold" />
+                <ListView ItemsSource="{x:Bind ViewModel.UpNext, Mode=OneWay}"
+                          SelectionMode="None" IsItemClickEnabled="True" ItemClick="UpNext_ItemClick"
+                          MaxHeight="132" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                          AutomationProperties.Name="Up next">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="Padding" Value="6,4" />
+                            <Setter Property="MinHeight" Value="0" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vms:UpNextItem">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Border Width="30" Height="30" CornerRadius="5" Background="{ThemeResource MuurHighlightBrush}">
+                                    <Image Stretch="UniformToFill">
+                                        <Image.Source>
+                                            <BitmapImage UriSource="{x:Bind ArtworkPath, Mode=OneTime, Converter={StaticResource PathOrDefaultArt}}" DecodePixelWidth="60" />
+                                        </Image.Source>
+                                    </Image>
+                                </Border>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Title}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                    <TextBlock Text="{x:Bind Artist}" FontSize="11" Style="{StaticResource MuurSecondaryText}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

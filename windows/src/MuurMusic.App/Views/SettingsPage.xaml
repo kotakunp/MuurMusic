@@ -1,0 +1,183 @@
+<Page
+    x:Class="MuurMusic.App.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    xmlns:audio="using:MuurMusic.Audio.Output"
+    Background="Transparent">
+    <ScrollViewer Padding="0,0,0,140">
+        <StackPanel Margin="24,16,24,0" Spacing="18" MaxWidth="760">
+            <TextBlock Text="Settings" Style="{StaticResource MuurPageTitle}" />
+
+            <!-- Appearance -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Appearance" FontSize="17" FontWeight="SemiBold" />
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Header="Theme" ItemsSource="{x:Bind ViewModel.Themes}" SelectedIndex="{x:Bind ViewModel.ThemeIndex, Mode=TwoWay}" AutomationProperties.Name="Theme" />
+                        <ComboBox Grid.Column="1" Header="Accent color" ItemsSource="{x:Bind ViewModel.Accents}" SelectedItem="{x:Bind ViewModel.Accent, Mode=TwoWay}" AutomationProperties.Name="Accent color" />
+                    </Grid>
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Header="Now playing style" ItemsSource="{x:Bind ViewModel.NowPlayingStyles}" SelectedIndex="{x:Bind ViewModel.NowPlayingStyleIndex, Mode=TwoWay}" AutomationProperties.Name="Now playing style" />
+                        <ComboBox Grid.Column="1" Header="Start page" ItemsSource="{x:Bind ViewModel.StartPages}" SelectedIndex="{x:Bind ViewModel.StartPageIndex, Mode=TwoWay}" AutomationProperties.Name="Start page" />
+                    </Grid>
+                    <ToggleSwitch Header="Show toast when the track changes" IsOn="{x:Bind ViewModel.ShowToastOnTrackChange, Mode=TwoWay}" />
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Header="Visualizer preset" ItemsSource="{x:Bind ViewModel.VisualizerPresets}" SelectedIndex="{x:Bind ViewModel.VisualizerPresetIndex, Mode=TwoWay}" AutomationProperties.Name="Visualizer preset" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                            <ToggleSwitch Header="Auto-cycle visualizer presets" IsOn="{x:Bind ViewModel.VisualizerAutoCycle, Mode=TwoWay}" />
+                            <Slider Value="{x:Bind ViewModel.VisualizerAutoCycleSeconds, Mode=TwoWay}" Minimum="10" Maximum="600" StepFrequency="5" />
+                            <TextBlock Style="{StaticResource MuurSecondaryText}" FontSize="11">
+                                <Run Text="Switch every " /><Run Text="{x:Bind ViewModel.VisualizerAutoCycleSeconds, Mode=OneWay}" /><Run Text=" seconds" />
+                            </TextBlock>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- Playback -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Playback" FontSize="17" FontWeight="SemiBold" />
+                    <ToggleSwitch Header="Gapless playback" IsOn="{x:Bind ViewModel.Gapless, Mode=TwoWay}" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource MuurSecondaryText}">
+                            <Run Text="Crossfade: " /><Run Text="{x:Bind ViewModel.CrossfadeSeconds, Mode=OneWay}" /><Run Text=" s (0 disables)" />
+                        </TextBlock>
+                        <Slider Value="{x:Bind ViewModel.CrossfadeSeconds, Mode=TwoWay}" Minimum="0" Maximum="12" StepFrequency="1" />
+                    </StackPanel>
+                    <ComboBox Header="ReplayGain" ItemsSource="{x:Bind ViewModel.ReplayGainModes}" SelectedIndex="{x:Bind ViewModel.ReplayGainIndex, Mode=TwoWay}" AutomationProperties.Name="ReplayGain mode" />
+                    <ToggleSwitch Header="Loudness boost for quiet recordings" IsOn="{x:Bind ViewModel.LoudnessBoostEnabled, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Audio output -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Audio output" FontSize="17" FontWeight="SemiBold" />
+                    <ComboBox Header="Output device" ItemsSource="{x:Bind ViewModel.Devices, Mode=OneWay}" SelectedItem="{x:Bind ViewModel.SelectedDevice, Mode=TwoWay}" AutomationProperties.Name="Output device">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="audio:OutputDeviceInfo">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{x:Bind FriendlyName}" />
+                                    <TextBlock Text="(default)" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" Visibility="{x:Bind IsDefault, Mode=OneTime}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <ToggleSwitch Header="Exclusive mode (bit-perfect, takes over the device)" IsOn="{x:Bind ViewModel.ExclusiveMode, Mode=TwoWay}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Library -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="12">
+                    <Grid>
+                        <TextBlock Text="Library" FontSize="17" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                            <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="18" Height="18" />
+                            <Button Command="{x:Bind ViewModel.RescanNowCommand}" IsEnabled="{x:Bind ViewModel.IsScanning, Mode=OneWay, Converter={StaticResource InverseBool}}" AutomationProperties.Name="Rescan library">
+                                <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE72C;" FontSize="12" /><TextBlock Text="Rescan now" /></StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{x:Bind ViewModel.LibraryStats, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" FontSize="12" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.WatchedFolders, Mode=OneWay}">
+                        <ItemsRepeater.Layout><StackLayout Spacing="6" /></ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="13" Foreground="{ThemeResource MuurAccentSecondaryBrush}" />
+                                        <TextBlock Text="{x:Bind}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <Button HorizontalAlignment="Right" Style="{StaticResource MuurIconButtonStyle}" Click="RemoveFolder_Click" Tag="{x:Bind}" ToolTipService.ToolTip="Remove folder" AutomationProperties.Name="Remove folder">
+                                        <FontIcon Glyph="&#xE711;" FontSize="11" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Command="{x:Bind ViewModel.AddFolderCommand}" AutomationProperties.Name="Add folder">
+                            <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="12" /><TextBlock Text="Add folder" /></StackPanel>
+                        </Button>
+                        <ToggleSwitch Header="Scan on startup" IsOn="{x:Bind ViewModel.ScanOnStartup, Mode=TwoWay}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Downloads -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Downloads and offline" FontSize="17" FontWeight="SemiBold" />
+                    <ToggleSwitch Header="Offline mode (hide unavailable remote tracks)" IsOn="{x:Bind ViewModel.OfflineMode, Mode=TwoWay}" />
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox Header="Download folder" Text="{x:Bind ViewModel.DownloadFolder, Mode=OneWay}" IsReadOnly="True" VerticalAlignment="Bottom" />
+                        <Button Grid.Column="1" Command="{x:Bind ViewModel.PickDownloadFolderCommand}" VerticalAlignment="Bottom" AutomationProperties.Name="Choose download folder"><TextBlock Text="Choose..." /></Button>
+                        <Button Grid.Column="2" Command="{x:Bind ViewModel.OpenDownloadFolderCommand}" VerticalAlignment="Bottom" AutomationProperties.Name="Open download folder"><TextBlock Text="Open" /></Button>
+                    </Grid>
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource MuurSecondaryText}">
+                            <Run Text="Parallel downloads: " /><Run Text="{x:Bind ViewModel.DownloadConcurrency, Mode=OneWay}" />
+                        </TextBlock>
+                        <Slider Value="{x:Bind ViewModel.DownloadConcurrency, Mode=TwoWay}" Minimum="1" Maximum="8" StepFrequency="1" />
+                    </StackPanel>
+                    <ToggleSwitch Header="Cache streamed audio for gapless remote playback" IsOn="{x:Bind ViewModel.AudioCacheEnabled, Mode=TwoWay}" />
+                    <StackPanel Spacing="2">
+                        <TextBlock Style="{StaticResource MuurSecondaryText}">
+                            <Run Text="Cache limit: " /><Run Text="{x:Bind ViewModel.AudioCacheMaxGb, Mode=OneWay}" /><Run Text=" GB  ·  using " /><Run Text="{x:Bind ViewModel.CacheSize, Mode=OneWay}" />
+                        </TextBlock>
+                        <Slider Value="{x:Bind ViewModel.AudioCacheMaxGb, Mode=TwoWay}" Minimum="1" Maximum="50" StepFrequency="1" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Command="{x:Bind ViewModel.ClearCacheCommand}" AutomationProperties.Name="Clear cache"><TextBlock Text="Clear cache" /></Button>
+                        <Button Command="{x:Bind ViewModel.EnforceCacheLimitCommand}" AutomationProperties.Name="Trim cache"><TextBlock Text="Trim to limit" /></Button>
+                        <TextBlock Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center">
+                            <Run Text="Offline copies: " /><Run Text="{x:Bind ViewModel.OfflineSize, Mode=OneWay}" />
+                        </TextBlock>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- About -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <Image Source="/Assets/AppLogo.png" Width="44" Height="44" x:Name="AboutLogo">
+                            <Image.RenderTransform>
+                                <RotateTransform CenterX="22" CenterY="22" />
+                            </Image.RenderTransform>
+                        </Image>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="{x:Bind ViewModel.VersionText, Mode=OneWay}" FontSize="17" FontWeight="SemiBold" />
+                            <TextBlock Text="The cat-approved, ad-free hi-res music player. Tap the logo..." Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind ViewModel.EasterEggText, Mode=OneWay}" Foreground="{ThemeResource MuurAccentBrush}" FontWeight="SemiBold" Visibility="{x:Bind ViewModel.EasterEggText, Mode=OneWay, Converter={StaticResource EmptyToVisibility}}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button Command="{x:Bind ViewModel.OpenLogsFolderCommand}" AutomationProperties.Name="Open logs"><TextBlock Text="Open logs folder" /></Button>
+                        <Button Command="{x:Bind ViewModel.OpenDataFolderCommand}" AutomationProperties.Name="Open data"><TextBlock Text="Open data folder" /></Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

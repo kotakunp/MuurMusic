@@ -1,0 +1,108 @@
+<Page
+    x:Class="MuurMusic.App.Views.SearchResultsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <ScrollViewer Padding="0,0,0,120">
+        <StackPanel Margin="24,16,24,0" Spacing="16">
+            <Grid>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource MuurPageTitle}">
+                        <Run Text="Results for &#x201C;" /><Run Text="{x:Bind ViewModel.Query, Mode=OneWay}" /><Run Text="&#x201D;" />
+                    </TextBlock>
+                </StackPanel>
+                <Button HorizontalAlignment="Right" Style="{StaticResource MuurAccentButton}" Click="PlayAll_Click"
+                        Visibility="{x:Bind ViewModel.HasTracks, Mode=OneWay}" AutomationProperties.Name="Play all results">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="13" /><TextBlock Text="Play all" /></StackPanel>
+                </Button>
+            </Grid>
+            <controls:PawLoadingIndicator HorizontalAlignment="Center" PawSize="24" Visibility="{x:Bind ViewModel.IsLoading, Mode=OneWay}" />
+
+            <StackPanel Visibility="{x:Bind ViewModel.HasAlbums, Mode=OneWay}" Spacing="8">
+                <TextBlock Text="Albums" FontSize="18" FontWeight="SemiBold" />
+                <GridView ItemsSource="{x:Bind ViewModel.Albums, Mode=OneWay}" IsItemClickEnabled="True" ItemClick="Album_ItemClick"
+                          SelectionMode="None" ScrollViewer.VerticalScrollMode="Disabled" MaxHeight="260" AutomationProperties.Name="Album results">
+                    <GridView.ItemTemplate>
+                        <DataTemplate x:DataType="vms:AlbumCardViewModel">
+                            <Grid Width="130" RowSpacing="4">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="130" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Border CornerRadius="{StaticResource MuurRadiusCard}" Background="{ThemeResource MuurHighlightBrush}">
+                                    <Image Stretch="UniformToFill">
+                                        <Image.Source>
+                                            <BitmapImage UriSource="{x:Bind ArtworkPath, Mode=OneTime, Converter={StaticResource PathOrDefaultArt}}" DecodePixelWidth="260" />
+                                        </Image.Source>
+                                    </Image>
+                                </Border>
+                                <TextBlock Grid.Row="1" Text="{x:Bind Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                            </Grid>
+                        </DataTemplate>
+                    </GridView.ItemTemplate>
+                </GridView>
+            </StackPanel>
+
+            <StackPanel Visibility="{x:Bind ViewModel.HasArtists, Mode=OneWay}" Spacing="8">
+                <TextBlock Text="Artists" FontSize="18" FontWeight="SemiBold" />
+                <ListView ItemsSource="{x:Bind ViewModel.Artists, Mode=OneWay}" IsItemClickEnabled="True" ItemClick="Artist_ItemClick"
+                          SelectionMode="None" ScrollViewer.VerticalScrollMode="Disabled" AutomationProperties.Name="Artist results">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vms:ArtistCardViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE77B;" FontSize="15" Foreground="{ThemeResource MuurAccentSecondaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind SubText}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <StackPanel Visibility="{x:Bind ViewModel.HasTracks, Mode=OneWay}" Spacing="8">
+                <TextBlock Text="Songs" FontSize="18" FontWeight="SemiBold" />
+                <controls:TrackRowsControl x:Name="TrackRows" PlayRequested="TrackRows_PlayRequested" />
+            </StackPanel>
+
+            <StackPanel Visibility="{x:Bind ViewModel.HasPlaylists, Mode=OneWay}" Spacing="8">
+                <TextBlock Text="Playlists" FontSize="18" FontWeight="SemiBold" />
+                <ListView ItemsSource="{x:Bind ViewModel.Playlists, Mode=OneWay}" IsItemClickEnabled="True" ItemClick="Playlist_ItemClick"
+                          SelectionMode="None" ScrollViewer.VerticalScrollMode="Disabled" AutomationProperties.Name="Playlist results">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vms:PlaylistCardViewModel">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE8FD;" FontSize="15" Foreground="{ThemeResource MuurAccentSecondaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind SubText}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <StackPanel Visibility="{x:Bind ViewModel.HasFolders, Mode=OneWay}" Spacing="8">
+                <TextBlock Text="Folders" FontSize="18" FontWeight="SemiBold" />
+                <ListView ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}" IsItemClickEnabled="True" ItemClick="Folder_ItemClick"
+                          SelectionMode="None" ScrollViewer.VerticalScrollMode="Disabled" AutomationProperties.Name="Folder results">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="vms:FolderCardItem">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="15" Foreground="{ThemeResource MuurAccentSecondaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                <TextBlock Text="{x:Bind Path}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+
+            <StackPanel Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}" HorizontalAlignment="Center" Spacing="12" Margin="0,40,0,0">
+                <Image Source="/Assets/empty-search.png" Width="260" />
+                <TextBlock Text="The cat found nothing" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <TextBlock Text="Try a different spelling, or fewer words." Style="{StaticResource MuurSecondaryText}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

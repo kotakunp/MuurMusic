@@ -1,0 +1,58 @@
+<Page
+    x:Class="MuurMusic.App.Views.EffectsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    Background="Transparent">
+    <Grid Margin="24,16,24,120" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Effects" Style="{StaticResource MuurPageTitle}" />
+                <TextBlock Text="Flip a card to drop that effect into the live DSP chain. Fine-tune order and filters on the DSP page." Style="{StaticResource MuurSecondaryText}" />
+            </StackPanel>
+            <ToggleSwitch HorizontalAlignment="Right" Header="Chain enabled" IsOn="{x:Bind ViewModel.ChainEnabled, Mode=TwoWay}" AutomationProperties.Name="DSP chain enabled" />
+        </Grid>
+        <ScrollViewer Grid.Row="1">
+            <ItemsRepeater ItemsSource="{x:Bind ViewModel.Cards, Mode=OneWay}">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout MinItemWidth="340" MinItemHeight="120" ItemsStretch="Fill" />
+                </ItemsRepeater.Layout>
+                <ItemsRepeater.ItemTemplate>
+                    <DataTemplate x:DataType="vms:EffectCardItem">
+                        <Border Style="{StaticResource MuurCardStyle}" Margin="6" Padding="14">
+                            <StackPanel Spacing="6">
+                                <Grid>
+                                    <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" FontSize="15" VerticalAlignment="Center" />
+                                    <ToggleSwitch HorizontalAlignment="Right" IsOn="{x:Bind IsOn, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0" AutomationProperties.Name="{x:Bind Label}" />
+                                </Grid>
+                                <ItemsRepeater ItemsSource="{x:Bind Params}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="2" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="vms:DspParamItem">
+                                            <Grid ColumnSpacing="10">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="110" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="80" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{x:Bind Label}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" FontSize="12" />
+                                                <Slider Grid.Column="1" Minimum="0" Maximum="1000" StepFrequency="1" Value="{x:Bind Slider, Mode=TwoWay}" IsEnabled="{x:Bind IsEffectivelyEnabled}" AutomationProperties.Name="{x:Bind Label}" />
+                                                <TextBlock Grid.Column="2" Text="{x:Bind DisplayValue, Mode=OneWay}" FontSize="11" VerticalAlignment="Center" HorizontalTextAlignment="Right" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsRepeater.ItemTemplate>
+            </ItemsRepeater>
+        </ScrollViewer>
+    </Grid>
+</Page>

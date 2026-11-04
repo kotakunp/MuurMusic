@@ -1,0 +1,48 @@
+<Page
+    x:Class="MuurMusic.App.Views.BookmarksPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:MuurMusic.Core.Models"
+    Background="Transparent">
+    <Grid Margin="24,16,24,0" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Text="Bookmarks" Style="{StaticResource MuurPageTitle}" />
+        <Grid Grid.Row="1">
+            <ListView ItemsSource="{x:Bind ViewModel.Bookmarks, Mode=OneWay}"
+                      IsItemClickEnabled="True" ItemClick="List_ItemClick"
+                      RightTapped="List_RightTapped"
+                      SelectionMode="Single" Padding="0,4,0,120"
+                      AutomationProperties.Name="Bookmarks">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="models:Bookmark">
+                        <Grid ColumnSpacing="10" Padding="0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="30" />
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="1.4*" />
+                                <ColumnDefinition Width="90" />
+                                <ColumnDefinition Width="140" />
+                            </Grid.ColumnDefinitions>
+                            <FontIcon Glyph="&#xE8A4;" FontSize="14" Foreground="{ThemeResource MuurAccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind TrackTitle}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{x:Bind Note}" Style="{StaticResource MuurSecondaryText}" FontSize="11" TextTrimming="CharacterEllipsis" Visibility="{x:Bind Note, Mode=OneTime, Converter={StaticResource EmptyToVisibility}}" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{x:Bind TrackArtist}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="3" Text="{x:Bind Position}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" />
+                            <TextBlock Grid.Column="4" Text="{x:Bind Created, Mode=OneTime, Converter={StaticResource DateTime}}" Style="{StaticResource MuurSecondaryText}" FontSize="11" VerticalAlignment="Center" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+            <StackPanel Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <Image Source="/Assets/empty-library.png" Width="240" />
+                <TextBlock Text="No bookmarks yet" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock Text="Use the bookmark button in the player bar while something plays." Style="{StaticResource MuurSecondaryText}" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

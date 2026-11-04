@@ -1,0 +1,121 @@
+<Page
+    x:Class="MuurMusic.App.Views.DownloadsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    Background="Transparent">
+    <ScrollViewer Padding="0,0,0,120">
+        <StackPanel Margin="24,16,24,0" Spacing="14" MaxWidth="860">
+            <Grid>
+                <TextBlock Text="Downloads" Style="{StaticResource MuurPageTitle}" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button Click="PauseAll_Click" IsEnabled="{x:Bind ViewModel.HasActive, Mode=OneWay}" AutomationProperties.Name="Pause all"><TextBlock Text="Pause all" /></Button>
+                    <Button Click="ResumeAll_Click" IsEnabled="{x:Bind ViewModel.HasActive, Mode=OneWay}" AutomationProperties.Name="Resume all"><TextBlock Text="Resume all" /></Button>
+                    <Button Click="ClearFinished_Click" IsEnabled="{x:Bind ViewModel.HasFinished, Mode=OneWay}" AutomationProperties.Name="Clear finished"><TextBlock Text="Clear finished" /></Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- Active -->
+            <Border Style="{StaticResource MuurCardStyle}" Visibility="{x:Bind ViewModel.HasActive, Mode=OneWay}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="In progress" FontSize="16" FontWeight="SemiBold" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Active, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="8" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vms:DownloadItemViewModel">
+                                <Grid ColumnSpacing="12" RowSpacing="2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind StatusText}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" Grid.RowSpan="2" VerticalAlignment="Center">
+                                        <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind PauseCommandProxy}" CommandParameter="{x:Bind}" Visibility="{x:Bind CanPause}" ToolTipService.ToolTip="Pause" AutomationProperties.Name="Pause download">
+                                            <FontIcon Glyph="&#xE769;" FontSize="13" />
+                                        </Button>
+                                        <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ResumeCommandProxy}" CommandParameter="{x:Bind}" Visibility="{x:Bind CanResume}" ToolTipService.ToolTip="Resume" AutomationProperties.Name="Resume download">
+                                            <FontIcon Glyph="&#xE768;" FontSize="13" />
+                                        </Button>
+                                        <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind CancelCommandProxy}" CommandParameter="{x:Bind}" Visibility="{x:Bind IsActive}" ToolTipService.ToolTip="Cancel" AutomationProperties.Name="Cancel download">
+                                            <FontIcon Glyph="&#xE711;" FontSize="13" />
+                                        </Button>
+                                    </StackPanel>
+                                    <ProgressBar Grid.Row="1" Grid.ColumnSpan="1" Value="{x:Bind ProgressPercent}" Maximum="100" Visibility="{x:Bind ShowProgress}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
+            </Border>
+
+            <!-- Finished -->
+            <Border Style="{StaticResource MuurCardStyle}" Visibility="{x:Bind ViewModel.HasFinished, Mode=OneWay}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="Finished" FontSize="16" FontWeight="SemiBold" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Finished, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vms:DownloadItemViewModel">
+                                <Grid ColumnSpacing="12" Padding="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{x:Bind StatusText}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{ThemeResource MuurHighlightBrush}" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind KindLabel}" FontSize="10" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                                    </Border>
+                                    <Button Grid.Column="2" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind RetryCommandProxy}" CommandParameter="{x:Bind}" Visibility="{x:Bind CanRetry}" ToolTipService.ToolTip="Retry" AutomationProperties.Name="Retry download">
+                                        <FontIcon Glyph="&#xE777;" FontSize="13" />
+                                    </Button>
+                                    <Button Grid.Column="3" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind RemoveCommandProxy}" CommandParameter="{x:Bind}" ToolTipService.ToolTip="Remove from list" AutomationProperties.Name="Remove download">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="13" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Nothing downloading. Remote tracks marked for offline and exports land here."
+                       Style="{StaticResource MuurSecondaryText}"
+                       Visibility="{x:Bind ViewModel.ShowEmpty, Mode=OneWay}" />
+
+            <!-- Storage -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Storage" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="{x:Bind ViewModel.CacheSizeText, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" />
+                    <TextBlock Text="{x:Bind ViewModel.OfflineSizeText, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <NumberBox Header="Stream cache limit (GB)" Value="{x:Bind ViewModel.CacheLimitGb, Mode=TwoWay}" Minimum="0.2" Maximum="64" Width="220" AutomationProperties.Name="Cache limit" />
+                        <Button VerticalAlignment="Bottom" Click="ApplyCacheLimit_Click" AutomationProperties.Name="Apply cache limit"><TextBlock Text="Apply" /></Button>
+                        <Button VerticalAlignment="Bottom" Click="ClearCache_Click" AutomationProperties.Name="Clear cache"><TextBlock Text="Clear cache" /></Button>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{x:Bind ViewModel.DownloadFolder, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="380" />
+                        <Button Click="ChangeFolder_Click" AutomationProperties.Name="Change download folder"><TextBlock Text="Change folder" /></Button>
+                        <Button Click="OpenFolder_Click" AutomationProperties.Name="Open download folder"><TextBlock Text="Open folder" /></Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

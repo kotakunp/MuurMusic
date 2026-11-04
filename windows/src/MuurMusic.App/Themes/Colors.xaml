@@ -1,0 +1,53 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Accent colors are mutated in place by ThemeService so every referencing brush updates live. -->
+    <Color x:Key="MuurAccentColor">#FFFFB23F</Color>
+    <Color x:Key="MuurAccentSecondaryColor">#FF8B6CFF</Color>
+    <SolidColorBrush x:Key="MuurAccentBrush" Color="{StaticResource MuurAccentColor}" />
+    <SolidColorBrush x:Key="MuurAccentSecondaryBrush" Color="{StaticResource MuurAccentSecondaryColor}" />
+
+    <CornerRadius x:Key="MuurRadiusRow">8</CornerRadius>
+    <CornerRadius x:Key="MuurRadiusCard">14</CornerRadius>
+    <CornerRadius x:Key="MuurRadiusArtwork">22</CornerRadius>
+
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+            <Color x:Key="MuurBackgroundColor">#FF17122B</Color>
+            <Color x:Key="MuurElevatedColor">#FF211A3D</Color>
+            <Color x:Key="MuurHighlightColor">#FF2C2350</Color>
+            <Color x:Key="MuurTextPrimaryColor">#FFF5F2FF</Color>
+            <Color x:Key="MuurTextSecondaryColor">#FFA79FC7</Color>
+            <Color x:Key="MuurDangerColor">#FFFF6B6B</Color>
+            <Color x:Key="MuurSuccessColor">#FF5EE0A0</Color>
+            <Color x:Key="MuurAccentTextColor">#FFFFB23F</Color>
+            <SolidColorBrush x:Key="MuurBackgroundBrush" Color="{ThemeResource MuurBackgroundColor}" />
+            <SolidColorBrush x:Key="MuurElevatedBrush" Color="{ThemeResource MuurElevatedColor}" />
+            <SolidColorBrush x:Key="MuurHighlightBrush" Color="{ThemeResource MuurHighlightColor}" />
+            <SolidColorBrush x:Key="MuurTextPrimaryBrush" Color="{ThemeResource MuurTextPrimaryColor}" />
+            <SolidColorBrush x:Key="MuurTextSecondaryBrush" Color="{ThemeResource MuurTextSecondaryColor}" />
+            <SolidColorBrush x:Key="MuurDangerBrush" Color="{ThemeResource MuurDangerColor}" />
+            <SolidColorBrush x:Key="MuurSuccessBrush" Color="{ThemeResource MuurSuccessColor}" />
+            <SolidColorBrush x:Key="MuurAccentTextBrush" Color="{ThemeResource MuurAccentTextColor}" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+            <Color x:Key="MuurBackgroundColor">#FFF7F5FC</Color>
+            <Color x:Key="MuurElevatedColor">#FFFFFFFF</Color>
+            <Color x:Key="MuurHighlightColor">#FFECE7FA</Color>
+            <Color x:Key="MuurTextPrimaryColor">#FF1B1630</Color>
+            <Color x:Key="MuurTextSecondaryColor">#FF5E5780</Color>
+            <Color x:Key="MuurDangerColor">#FFD93636</Color>
+            <Color x:Key="MuurSuccessColor">#FF1E9E63</Color>
+            <Color x:Key="MuurAccentTextColor">#FFC77C00</Color>
+            <SolidColorBrush x:Key="MuurBackgroundBrush" Color="{ThemeResource MuurBackgroundColor}" />
+            <SolidColorBrush x:Key="MuurElevatedBrush" Color="{ThemeResource MuurElevatedColor}" />
+            <SolidColorBrush x:Key="MuurHighlightBrush" Color="{ThemeResource MuurHighlightColor}" />
+            <SolidColorBrush x:Key="MuurTextPrimaryBrush" Color="{ThemeResource MuurTextPrimaryColor}" />
+            <SolidColorBrush x:Key="MuurTextSecondaryBrush" Color="{ThemeResource MuurTextSecondaryColor}" />
+            <SolidColorBrush x:Key="MuurDangerBrush" Color="{ThemeResource MuurDangerColor}" />
+            <SolidColorBrush x:Key="MuurSuccessBrush" Color="{ThemeResource MuurSuccessColor}" />
+            <SolidColorBrush x:Key="MuurAccentTextBrush" Color="{ThemeResource MuurAccentTextColor}" />
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

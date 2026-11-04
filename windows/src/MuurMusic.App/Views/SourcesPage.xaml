@@ -1,0 +1,147 @@
+<Page
+    x:Class="MuurMusic.App.Views.SourcesPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <ScrollViewer Padding="0,0,0,120">
+        <StackPanel Margin="24,16,24,0" Spacing="14" MaxWidth="900">
+            <TextBlock Text="Sources" Style="{StaticResource MuurPageTitle}" />
+
+            <!-- Connected sources -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Connected" FontSize="16" FontWeight="SemiBold" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Sources, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vms:SourceItemViewModel">
+                                <Grid ColumnSpacing="12" Padding="0,4">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <Border Background="{ThemeResource MuurHighlightBrush}" CornerRadius="4" Padding="5,1" VerticalAlignment="Center">
+                                                <TextBlock Text="{x:Bind KindLabel}" FontSize="10" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{x:Bind Subtitle}" Style="{StaticResource MuurSecondaryText}" FontSize="11" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                        <TextBlock Text="{x:Bind Status, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                                    </StackPanel>
+                                    <ToggleSwitch Grid.Column="1" IsOn="{x:Bind Enabled, Mode=TwoWay}" OnContent="" OffContent="" MinWidth="0" VerticalAlignment="Center" AutomationProperties.Name="Enabled" />
+                                    <Button Grid.Column="2" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind BrowseCommand}" CommandParameter="{x:Bind}" ToolTipService.ToolTip="Browse" AutomationProperties.Name="Browse source">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="14" />
+                                    </Button>
+                                    <Button Grid.Column="3" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind TestCommand}" CommandParameter="{x:Bind}" IsEnabled="{x:Bind IsBusy, Mode=OneWay, Converter={StaticResource InverseBool}}" ToolTipService.ToolTip="Test connection" AutomationProperties.Name="Test connection">
+                                        <FontIcon Glyph="&#xE9F5;" FontSize="14" />
+                                    </Button>
+                                    <Button Grid.Column="4" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind EditCommand}" CommandParameter="{x:Bind}" ToolTipService.ToolTip="Edit" AutomationProperties.Name="Edit source">
+                                        <FontIcon Glyph="&#xE70F;" FontSize="14" />
+                                    </Button>
+                                    <Button Grid.Column="5" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind RemoveCommand}" CommandParameter="{x:Bind}" ToolTipService.ToolTip="Remove" AutomationProperties.Name="Remove source">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                    <TextBlock Text="No sources yet \u2014 add one below, or let the network scan find your servers."
+                               Style="{StaticResource MuurSecondaryText}"
+                               Visibility="{x:Bind ViewModel.HasSources, Mode=OneWay, Converter={StaticResource InverseBool}}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Add -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Add a source" FontSize="16" FontWeight="SemiBold" />
+                    <TextBlock Text="Cloud" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    <StackPanel x:Name="CloudButtons" Orientation="Horizontal" Spacing="8" />
+                    <TextBlock Text="Media servers" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    <StackPanel x:Name="MediaButtons" Orientation="Horizontal" Spacing="8" />
+                    <TextBlock Text="Servers &amp; network" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    <StackPanel x:Name="ServerButtons" Orientation="Horizontal" Spacing="8" />
+                    <TextBlock Text="On this device" FontSize="12" FontWeight="SemiBold" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    <StackPanel x:Name="DeviceButtons" Orientation="Horizontal" Spacing="8" />
+                </StackPanel>
+            </Border>
+
+            <!-- Discovery -->
+            <Border Style="{StaticResource MuurCardStyle}">
+                <StackPanel Spacing="8">
+                    <Grid>
+                        <TextBlock Text="Found on your network" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        <Button HorizontalAlignment="Right" Click="Scan_Click" AutomationProperties.Name="Scan network">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <controls:PawLoadingIndicator PawSize="12" Visibility="{x:Bind ViewModel.IsScanning, Mode=OneWay}" />
+                                <TextBlock Text="{x:Bind ViewModel.ScanButtonText, Mode=OneWay}" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                    <TextBlock Text="{x:Bind ViewModel.ScanStatus, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Discovered, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vms:DiscoveredItem">
+                                <Grid ColumnSpacing="10" Padding="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Subtitle}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Command="{x:Bind AddCommand}" CommandParameter="{x:Bind}" AutomationProperties.Name="Add discovered server">
+                                        <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="12" /><TextBlock Text="Add" /></StackPanel>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
+            </Border>
+
+            <!-- Removable drives -->
+            <Border Style="{StaticResource MuurCardStyle}" Visibility="{x:Bind ViewModel.HasDrives, Mode=OneWay}">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Removable drives" FontSize="16" FontWeight="SemiBold" />
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Drives, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="vms:DriveItem">
+                                <Grid ColumnSpacing="10" Padding="0,2">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{x:Bind Subtitle}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                                    </StackPanel>
+                                    <Button Grid.Column="1" Command="{x:Bind BrowseCommand}" CommandParameter="{x:Bind}" AutomationProperties.Name="Browse drive"><TextBlock Text="Browse" /></Button>
+                                    <Button Grid.Column="2" Command="{x:Bind AddToLibraryCommand}" CommandParameter="{x:Bind}" AutomationProperties.Name="Add drive to library"><TextBlock Text="Add to library" /></Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(MuurWindowsTargetFramework)</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MuurMusic.App</RootNamespace>
+    <AssemblyName>MuurMusic</AssemblyName>
+    <AssemblyTitle>MuurMusic</AssemblyTitle>
+    <Description>MuurMusic — the ad-free hi-res music player. No ads, ever.</Description>
+    <PackageProjectUrl>https://muur.app</PackageProjectUrl>
+    <ApplicationIcon>Assets\MuurMusic.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <PublishAot>false</PublishAot>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- MVVMTK0045: [ObservableProperty] fields are not AOT-safe in WinRT; we never publish AOT (PublishAot=false), so this does not apply. -->
+    <NoWarn>$(NoWarn);MVVMTK0045</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Graphics.Win2D" />
+    <PackageReference Include="Sdcb.FFmpeg.runtime.windows-x64" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MuurMusic.Core\MuurMusic.Core.csproj" />
+    <ProjectReference Include="..\MuurMusic.Audio\MuurMusic.Audio.csproj" />
+  </ItemGroup>
+</Project>

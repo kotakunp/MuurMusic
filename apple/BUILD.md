@@ -17,9 +17,9 @@ open MuurMusic.xcodeproj   # or use xcodebuild below
 ```
 
 There is a single scheme, **MuurMusic**. Both the app and the widget extension
-targets are multi-platform targets (`SDKROOT=auto`,
-`SUPPORTED_PLATFORMS="iphoneos iphonesimulator macosx"`), so the same scheme
-builds either platform depending on the destination:
+targets are multi-platform targets (`supportedDestinations: [iOS, macOS]` in
+`project.yml`), so the same scheme builds either platform depending on the
+destination:
 
 ```sh
 # iOS (Simulator)
@@ -33,6 +33,28 @@ xcodebuild build -project MuurMusic.xcodeproj -scheme MuurMusic \
 
 That is exactly what CI (`.github/workflows/apple.yml`) runs. Regenerate the
 project after adding or removing files: `xcodegen generate` again.
+
+## Current status (continue here on a Mac)
+
+The Apple code was written on Windows without a Swift compiler, and the only
+compile checks so far ran in GitHub Actions:
+
+- `xcodegen generate` works.
+- CI round 2 found 4 compile errors in MuurKit (`DownloadManager.swift`,
+  `FTPSource.swift`, `S3Source.swift`); they are fixed in commit `8c09e42`.
+  CI never got past MuurKit, so the app (`MuurMusic/`) and widget
+  (`MuurWidgets/`) sources have not been compiled yet. Expect more errors there.
+- None of it has been run yet: not in the Simulator, not on a device.
+
+Suggested order on the Mac:
+
+1. `cd apple/Packages/MuurKit && swift build && swift test`, and fix until green.
+2. `cd apple && xcodegen generate`, open the project, and build the
+   **MuurMusic** scheme for an iOS Simulator and for My Mac. Fix errors.
+3. Remove the CarPlay key from `MuurMusic/MuurMusic-iOS.entitlements`
+   (see below), pick your team under Signing, and run on your iPhone.
+4. Smoke-test: add a folder of music, play FLAC/ALAC, gapless album, EQ preset,
+   lock-screen controls, a widget, Wi-Fi transfer upload.
 
 ## Secrets (optional cloud sources)
 

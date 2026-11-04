@@ -1,0 +1,163 @@
+<UserControl
+    x:Class="MuurMusic.App.Controls.MiniPlayer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    x:Name="Root">
+
+    <Grid Background="{ThemeResource MuurElevatedBrush}" BorderBrush="{ThemeResource MuurHighlightBrush}" BorderThickness="0,1,0,0">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Seek row -->
+        <Grid Grid.Row="0" Margin="12,8,12,0" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="52" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="52" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="{x:Bind ViewModel.PositionText, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" />
+            <Slider x:Name="SeekSlider" Grid.Column="1"
+                    Minimum="0" Maximum="{x:Bind ViewModel.DurationSeconds, Mode=OneWay}"
+                    Value="{x:Bind ViewModel.SeekSliderValue, Mode=TwoWay}"
+                    StepFrequency="0.25" SmallChange="1" LargeChange="10"
+                    VerticalAlignment="Center"
+                    PointerPressed="SeekSlider_PointerPressed" PointerCaptureLost="SeekSlider_PointerCaptureLost"
+                    ValueChanged="SeekSlider_ValueChanged"
+                    AutomationProperties.Name="Seek" />
+            <TextBlock Grid.Column="2" Text="{x:Bind ViewModel.DurationText, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" VerticalAlignment="Center" HorizontalTextAlignment="Right" />
+        </Grid>
+
+        <!-- Transport row -->
+        <Grid Grid.Row="1" Margin="12,2,12,8" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="340" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Track info -->
+            <Grid Grid.Column="0" ColumnSpacing="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border Width="48" Height="48" CornerRadius="{StaticResource MuurRadiusRow}" Background="{ThemeResource MuurHighlightBrush}">
+                    <Image x:Name="ArtworkImage" Stretch="UniformToFill" ImageFailed="ArtworkImage_Failed" AutomationProperties.Name="Current track artwork" />
+                </Border>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                    <TextBlock Text="{x:Bind ViewModel.TrackTitle, Mode=OneWay}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <TextBlock Text="{x:Bind ViewModel.TrackArtist, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                    <controls:PawLoadingIndicator x:Name="BufferPaws" PawSize="10" IsActive="{x:Bind ViewModel.IsBuffering, Mode=OneWay}" Visibility="{x:Bind ViewModel.IsBuffering, Mode=OneWay}" />
+                </StackPanel>
+                <Button Grid.Column="2" Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.ToggleFavoriteCommand}"
+                        AutomationProperties.Name="Favorite" VerticalAlignment="Center">
+                    <FontIcon Glyph="{x:Bind ViewModel.IsFavoriteGlyph, Mode=OneWay}" Foreground="{ThemeResource MuurAccentBrush}" FontSize="16" />
+                </Button>
+            </Grid>
+
+            <!-- Transport buttons -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.ToggleShuffleCommand}" AutomationProperties.Name="Shuffle">
+                    <FontIcon Glyph="&#xE8B1;" FontSize="15" Foreground="{x:Bind ViewModel.ShuffleBrush, Mode=OneWay}" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.PreviousCommand}" AutomationProperties.Name="Previous track">
+                    <FontIcon Glyph="&#xE892;" FontSize="17" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.SkipBackCommand}" AutomationProperties.Name="{x:Bind ViewModel.SkipBackName, Mode=OneWay}">
+                    <TextBlock Text="{x:Bind ViewModel.SkipBackLabel, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" />
+                </Button>
+                <Button Command="{x:Bind ViewModel.TogglePlayPauseCommand}" Width="46" Height="46" CornerRadius="23"
+                        Background="{ThemeResource MuurAccentBrush}" VerticalAlignment="Center" AutomationProperties.Name="Play or pause">
+                    <FontIcon Glyph="{x:Bind ViewModel.PlayPauseGlyph, Mode=OneWay}" FontSize="19" Foreground="{ThemeResource MuurBackgroundBrush}" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.SkipForwardCommand}" AutomationProperties.Name="{x:Bind ViewModel.SkipForwardName, Mode=OneWay}">
+                    <TextBlock Text="{x:Bind ViewModel.SkipForwardLabel, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.NextCommand}" AutomationProperties.Name="Next track">
+                    <FontIcon Glyph="&#xE893;" FontSize="17" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.CycleRepeatCommand}" AutomationProperties.Name="Repeat">
+                    <FontIcon Glyph="{x:Bind ViewModel.RepeatGlyph, Mode=OneWay}" FontSize="15" Foreground="{x:Bind ViewModel.RepeatBrush, Mode=OneWay}" />
+                </Button>
+                <Button Style="{StaticResource MuurIconButtonStyle}" Command="{x:Bind ViewModel.ToggleStopAfterCurrentCommand}" AutomationProperties.Name="Stop after current track">
+                    <TextBlock Text="&#x25A0;|&#x25B6;" FontSize="10" Foreground="{x:Bind ViewModel.StopAfterBrush, Mode=OneWay}" FontWeight="SemiBold" />
+                </Button>
+            </StackPanel>
+
+            <!-- Right cluster -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="2">
+                <TextBlock Text="{x:Bind ViewModel.OutputInfo, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}"
+                           VerticalAlignment="Center" Margin="0,0,8,0" MaxWidth="260" TextTrimming="CharacterEllipsis" />
+
+                <Button Style="{StaticResource MuurIconButtonStyle}" AutomationProperties.Name="Playback speed">
+                    <TextBlock Text="{x:Bind ViewModel.SpeedText, Mode=OneWay}" FontSize="11" FontWeight="SemiBold" />
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="0.5×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="0.5" />
+                            <MenuFlyoutItem Text="0.75×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="0.75" />
+                            <MenuFlyoutItem Text="1.0×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="1" />
+                            <MenuFlyoutItem Text="1.25×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="1.25" />
+                            <MenuFlyoutItem Text="1.5×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="1.5" />
+                            <MenuFlyoutItem Text="1.75×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="1.75" />
+                            <MenuFlyoutItem Text="2.0×" Command="{x:Bind ViewModel.SetSpeedCommand}" CommandParameter="2" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button Style="{StaticResource MuurIconButtonStyle}" AutomationProperties.Name="Sleep timer">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE916;" FontSize="14" />
+                        <TextBlock Text="{x:Bind ViewModel.SleepTimerText, Mode=OneWay}" FontSize="11" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                    </StackPanel>
+                    <Button.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="5 minutes" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="5" />
+                            <MenuFlyoutItem Text="10 minutes" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="10" />
+                            <MenuFlyoutItem Text="15 minutes" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="15" />
+                            <MenuFlyoutItem Text="30 minutes" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="30" />
+                            <MenuFlyoutItem Text="45 minutes" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="45" />
+                            <MenuFlyoutItem Text="1 hour" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="60" />
+                            <MenuFlyoutSeparator />
+                            <MenuFlyoutItem Text="Off" Command="{x:Bind ViewModel.SetSleepTimerCommand}" CommandParameter="off" />
+                        </MenuFlyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button Style="{StaticResource MuurIconButtonStyle}" AutomationProperties.Name="Queue">
+                    <FontIcon Glyph="&#xE8FD;" FontSize="15" />
+                    <Button.Flyout>
+                        <Flyout FlyoutPresenterStyle="{StaticResource MuurFlyoutStyle}">
+                            <controls:QueueFlyoutContent />
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button x:Name="CastButton" Style="{StaticResource MuurIconButtonStyle}" AutomationProperties.Name="Cast to device">
+                    <FontIcon Glyph="&#xE8BF;" FontSize="15" Foreground="{x:Bind ViewModel.CastBrush, Mode=OneWay}" />
+                    <Button.Flyout>
+                        <Flyout Opened="CastFlyout_Opened" FlyoutPresenterStyle="{StaticResource MuurFlyoutStyle}">
+                            <controls:CastFlyoutContent />
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button Style="{StaticResource MuurIconButtonStyle}" AutomationProperties.Name="Volume and output">
+                    <FontIcon Glyph="{x:Bind ViewModel.VolumeGlyph, Mode=OneWay}" FontSize="15" />
+                    <Button.Flyout>
+                        <Flyout FlyoutPresenterStyle="{StaticResource MuurFlyoutStyle}">
+                            <controls:VolumeFlyoutContent />
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
+                <Button Style="{StaticResource MuurIconButtonStyle}" Click="NowPlaying_Click" AutomationProperties.Name="Open Now Playing">
+                    <FontIcon Glyph="&#xE978;" FontSize="15" Foreground="{ThemeResource MuurAccentTextBrush}" />
+                </Button>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

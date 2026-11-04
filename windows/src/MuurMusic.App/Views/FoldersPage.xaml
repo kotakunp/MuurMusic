@@ -1,0 +1,65 @@
+<Page
+    x:Class="MuurMusic.App.Views.FoldersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vms="using:MuurMusic.App.ViewModels"
+    xmlns:controls="using:MuurMusic.App.Controls"
+    Background="Transparent">
+    <Grid Margin="24,16,24,0" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource MuurHeaderButton}" Click="Up_Click"
+                    IsEnabled="{x:Bind ViewModel.CanGoUp, Mode=OneWay}" AutomationProperties.Name="Up one folder">
+                <FontIcon Glyph="&#xE74A;" FontSize="16" />
+            </Button>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <TextBlock Text="{x:Bind ViewModel.Title, Mode=OneWay}" Style="{StaticResource MuurPageTitle}" />
+                <TextBlock Text="{x:Bind ViewModel.CurrentPath, Mode=OneWay}" Style="{StaticResource MuurSecondaryText}" FontSize="11" Visibility="{x:Bind ViewModel.CanGoUp, Mode=OneWay}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                <Button Click="PlayFolder_Click" AutomationProperties.Name="Play folder">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE768;" FontSize="13" /><TextBlock Text="Play" /></StackPanel>
+                </Button>
+                <Button Click="AddFolder_Click" AutomationProperties.Name="Add folder to library">
+                    <StackPanel Orientation="Horizontal" Spacing="6"><FontIcon Glyph="&#xE710;" FontSize="13" /><TextBlock Text="Add folder" /></StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+        <Grid Grid.Row="1" Visibility="{x:Bind ViewModel.HasFolders, Mode=OneWay}">
+            <ListView ItemsSource="{x:Bind ViewModel.Folders, Mode=OneWay}"
+                      IsItemClickEnabled="True" ItemClick="Folder_ItemClick"
+                      SelectionMode="None" MaxHeight="150"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Subfolders">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vms:FolderCardItem">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE8B7;" FontSize="16" Foreground="{ThemeResource MuurAccentBrush}" VerticalAlignment="Center" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                <TextBlock Text="{x:Bind SubText}" Style="{StaticResource MuurSecondaryText}" FontSize="11" />
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Grid>
+        <Grid Grid.Row="2">
+            <controls:TrackRowsControl x:Name="TrackRows" PlayRequested="TrackRows_PlayRequested" />
+            <StackPanel Visibility="{x:Bind ViewModel.IsEmpty, Mode=OneWay}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+                <Image Source="/Assets/empty-library.png" Width="240" />
+                <TextBlock Text="No music folders in the library yet" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                <Button Click="AddFolder_Click" Style="{StaticResource MuurAccentButton}" Content="Add a folder" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>
