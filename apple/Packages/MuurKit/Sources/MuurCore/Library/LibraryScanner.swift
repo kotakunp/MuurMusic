@@ -523,6 +523,16 @@ public final class LibraryScanner: ObservableObject {
         startLoopIfNeeded()
     }
 
+    /// Incrementally rescans the app's own folder (Documents on iOS), where Wi-Fi transfer, the Files app
+    /// and Finder file sharing put music.
+    public func scanAppDocuments() {
+        Task {
+            await ensureDefaultFolder()
+            guard let folder = try? await repository.watchedFolders().first(where: { $0.isAppDocuments }) else { return }
+            scan(folderID: folder.id)
+        }
+    }
+
     public func cancel() {
         pendingAll = false
         pendingFolders.removeAll()

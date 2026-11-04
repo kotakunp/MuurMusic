@@ -105,6 +105,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var recentSearches: [String] = []
 
     private var settingsForwarding: AnyCancellable?
+    private var scanErrorForwarding: AnyCancellable?
 
     init() {
         let booted: MuurEnvironment
@@ -130,6 +131,9 @@ final class AppModel: ObservableObject {
         }
         booted.scanner.$isScanning.assign(to: &$isScanning)
         booted.scanner.$progress.assign(to: &$scanProgress)
+        scanErrorForwarding = booted.scanner.$lastError.compactMap { $0 }.sink { [weak self] message in
+            self?.toast = .error("Library scan failed: \(message)")
+        }
         observe()
         if let startupError {
             toast = .error(startupError)

@@ -51,7 +51,7 @@ struct WiFiTransferView: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    Text("Both devices must be on the same Wi-Fi network. Drop music files on the page — the cat drags them into your library.")
+                    Text("Both devices must be on the same Wi-Fi network. Drop music files on the page — the cat drags them into your library. Keep this screen open while uploading.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -135,6 +135,12 @@ struct WiFiTransferView: View {
         .onReceive(server.$uploads) { uploads = $0.reversed() }
         .onReceive(server.$receivedFileCount) { receivedCount = $0 }
         .onReceive(server.$lastError) { lastError = $0 }
+        #if os(iOS)
+        // iOS suspends the server when the phone locks, which would cut uploads off midway.
+        .onChange(of: isRunning) { _, running in UIApplication.shared.isIdleTimerDisabled = running }
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = server.isRunning }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        #endif
     }
 
     private var runningBinding: Binding<Bool> {

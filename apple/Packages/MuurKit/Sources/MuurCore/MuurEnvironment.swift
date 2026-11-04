@@ -111,7 +111,7 @@ public final class MuurEnvironment: ObservableObject {
         wifiTransfer.onFilesReceived = { [weak self] files in
             guard let self else { return }
             Log.transfer.info("Received \(files.count) item(s) over Wi-Fi; rescanning")
-            self.scanner.scan(folderID: "app-documents")
+            self.scanner.scanAppDocuments()
         }
         downloads.start()
         Task { [weak self] in

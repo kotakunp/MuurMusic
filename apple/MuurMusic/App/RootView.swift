@@ -7,6 +7,10 @@ struct RootView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
     @Namespace private var playerNamespace
+    #if os(iOS)
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var returnsFromBackground = false
+    #endif
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
     #endif
@@ -21,6 +25,21 @@ struct RootView: View {
                 // Keep widget artwork pruned and warm the discovery list once.
                 model.environment.discovery.start()
             }
+            #if os(iOS)
+            .onChange(of: scenePhase) { _, newPhase in
+                // Files added through the Files app or Finder while the app was away show up on return.
+                // Coming back passes through .inactive, so remember the background visit.
+                switch newPhase {
+                case .background:
+                    returnsFromBackground = true
+                case .active where returnsFromBackground:
+                    returnsFromBackground = false
+                    model.environment.scanner.scanAppDocuments()
+                default:
+                    break
+                }
+            }
+            #endif
     }
 
     private var preferredScheme: ColorScheme? {
