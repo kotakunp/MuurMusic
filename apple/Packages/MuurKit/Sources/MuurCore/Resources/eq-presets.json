@@ -1,0 +1,604 @@
+{
+  "format": "muur-eq",
+  "version": 1,
+  "presets": [
+    {
+      "name": "Flat",
+      "preampDb": 0,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 0
+        }
+      ]
+    },
+    {
+      "name": "Rock",
+      "preampDb": -3,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 4
+        }
+      ]
+    },
+    {
+      "name": "Pop",
+      "preampDb": -3,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": -1
+        }
+      ]
+    },
+    {
+      "name": "Jazz",
+      "preampDb": -2,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 3
+        }
+      ]
+    },
+    {
+      "name": "Classical",
+      "preampDb": -2,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 3
+        }
+      ]
+    },
+    {
+      "name": "Electronic",
+      "preampDb": -4,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 5
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -2
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 5
+        }
+      ]
+    },
+    {
+      "name": "Hip-Hop",
+      "preampDb": -4,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 5
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 3
+        }
+      ]
+    },
+    {
+      "name": "Vocal",
+      "preampDb": -3,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": -2
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": -3
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": -2
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": -1
+        }
+      ]
+    },
+    {
+      "name": "Bass Boost",
+      "preampDb": -6,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 7
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 6
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 5
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 0
+        }
+      ]
+    },
+    {
+      "name": "Treble Boost",
+      "preampDb": -6,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 5
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 6
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 7
+        }
+      ]
+    },
+    {
+      "name": "Loudness",
+      "preampDb": -4,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 6
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -1
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 5
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 4
+        }
+      ]
+    },
+    {
+      "name": "Acoustic",
+      "preampDb": -3,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 4
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 3
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 2
+        }
+      ]
+    },
+    {
+      "name": "Late Night",
+      "preampDb": -2,
+      "bands": [
+        {
+          "frequencyHz": 31,
+          "gainDb": 2
+        },
+        {
+          "frequencyHz": 62,
+          "gainDb": 1.5
+        },
+        {
+          "frequencyHz": 125,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 250,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 500,
+          "gainDb": -0.5
+        },
+        {
+          "frequencyHz": 1000,
+          "gainDb": 0
+        },
+        {
+          "frequencyHz": 2000,
+          "gainDb": 0.5
+        },
+        {
+          "frequencyHz": 4000,
+          "gainDb": 1
+        },
+        {
+          "frequencyHz": 8000,
+          "gainDb": 0.5
+        },
+        {
+          "frequencyHz": 16000,
+          "gainDb": 0
+        }
+      ]
+    }
+  ]
+}

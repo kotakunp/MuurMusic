@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>$(MuurWindowsTargetFramework)</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>MuurMusic.Audio</RootNamespace>
+    <AssemblyName>MuurMusic.Audio</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="MuurMusic.Audio.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MuurMusic.Core\MuurMusic.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FFmpeg.AutoGen" />
+    <PackageReference Include="Sdcb.FFmpeg.runtime.windows-x64" />
+    <PackageReference Include="NAudio.Wasapi" />
+    <PackageReference Include="NAudio.Core" />
+    <PackageReference Include="Sharpcaster" />
+  </ItemGroup>
+</Project>
