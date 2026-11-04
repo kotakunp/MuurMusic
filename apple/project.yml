@@ -19,9 +19,9 @@ name: MuurMusic
 #   xcodebuild -scheme MuurMusic -destination "generic/platform=macOS"
 # and both build the same target with the destination's SDK.
 #
-# XcodeGen has no first-class "multiplatform" platform value, so the targets
-# declare `platform: iOS` and then override SDKROOT / SUPPORTED_PLATFORMS in
-# their base settings (explicit settings win over XcodeGen's derived ones).
+# Both targets use XcodeGen's `supportedDestinations: [iOS, macOS]`, which
+# generates the SDKROOT=auto / SUPPORTED_PLATFORMS settings Xcode uses for
+# multiplatform targets.
 # ---------------------------------------------------------------------------
 
 options:
@@ -51,8 +51,10 @@ targets:
   # =========================================================================
   MuurMusic:
     type: application
-    platform: iOS # overridden to a multi-platform target via settings below
-    deploymentTarget: "17.0"
+    supportedDestinations: [iOS, macOS]
+    deploymentTarget:
+      iOS: "17.0"
+      macOS: "14.0"
     configFiles:
       Debug: Config.xcconfig
       Release: Config.xcconfig
@@ -74,9 +76,6 @@ targets:
         PRODUCT_NAME: MuurMusic
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MuurMusic/Info.plist
-        # Multi-platform target (see header comment).
-        SDKROOT: auto
-        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -93,12 +92,12 @@ targets:
   # =========================================================================
   # MuurWidgets — WidgetKit extension (iOS 17+ and macOS 14+)
   # =========================================================================
-  # Widget extensions are plain app extensions; `bundle.app-extension` is the
-  # most robust XcodeGen product type and XcodeGen embeds it into PlugIns.
   MuurWidgets:
-    type: bundle.app-extension
-    platform: iOS # overridden to a multi-platform target via settings below
-    deploymentTarget: "17.0"
+    type: app-extension
+    supportedDestinations: [iOS, macOS]
+    deploymentTarget:
+      iOS: "17.0"
+      macOS: "14.0"
     sources:
       - path: MuurWidgets
         excludes:
@@ -113,8 +112,6 @@ targets:
         PRODUCT_NAME: MuurWidgets
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: MuurWidgets/Info.plist
-        SDKROOT: auto
-        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         SKIP_INSTALL: YES
