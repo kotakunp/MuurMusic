@@ -54,10 +54,10 @@ struct ResumePlaybackIntent: AppIntent {
     }
 }
 
-/// Shuffle the favorites.
+/// Shuffle the liked songs.
 struct ShuffleFavoritesIntent: AppIntent {
-    static var title: LocalizedStringResource = "Shuffle Favorites"
-    static var description = IntentDescription("Plays your MuurMusic favorites on shuffle.")
+    static var title: LocalizedStringResource = "Shuffle Liked Songs"
+    static var description = IntentDescription("Plays your MuurMusic liked songs on shuffle.")
     static var openAppWhenRun = false
 
     @MainActor
@@ -150,8 +150,8 @@ struct MuurShortcuts: AppShortcutsProvider {
         )
         AppShortcut(
             intent: ShuffleFavoritesIntent(),
-            phrases: ["Shuffle my favorites in \(.applicationName)"],
-            shortTitle: "Shuffle Favorites",
+            phrases: ["Shuffle my liked songs in \(.applicationName)", "Shuffle my favorites in \(.applicationName)"],
+            shortTitle: "Shuffle Liked Songs",
             systemImageName: "shuffle"
         )
         AppShortcut(

@@ -86,7 +86,7 @@ struct TrackRowView: View {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 10))
                                 .foregroundStyle(.tint)
-                                .accessibilityLabel("Favorite")
+                                .accessibilityLabel("Liked")
                         }
                         FormatBadge(track: track)
                         Text(subtitle)
@@ -133,9 +133,16 @@ struct TrackRowView: View {
             Button {
                 model.toggleFavorite(track)
             } label: {
-                Label(track.favorite ? "Unfavorite" : "Favorite", systemImage: track.favorite ? "heart.slash" : "heart.fill")
+                Label(track.favorite ? "Unlike" : "Like", systemImage: track.favorite ? "heart.slash" : "heart.fill")
             }
             .tint(.pink)
+            if onRemove == nil {
+                Button(role: .destructive) {
+                    model.requestDelete([track])
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
         }
         .sheet(item: $sheetRequest) { request in
             TrackSheetHost(request: request)
@@ -203,7 +210,7 @@ struct TrackContextMenu: View {
             Button {
                 model.toggleFavorite(track)
             } label: {
-                Label(track.favorite ? "Remove from Favorites" : "Add to Favorites",
+                Label(track.favorite ? "Remove from Liked Songs" : "Add to Liked Songs",
                       systemImage: track.favorite ? "heart.slash" : "heart")
             }
             Menu {
@@ -226,7 +233,8 @@ struct TrackContextMenu: View {
                 Button {
                     addBookmark(for: track)
                 } label: {
-                    Label("Add Bookmark at \(MuurFormat.duration(player.position))", systemImage: "bookmark.fill")
+                    // A live position here would rebuild the open menu every tick and reset its scrolling.
+                    Label("Add Bookmark Here", systemImage: "bookmark.fill")
                 }
             }
         }
@@ -260,6 +268,19 @@ struct TrackContextMenu: View {
                 Label("Share File…", systemImage: "square.and.arrow.up")
             }
         }
+
+        Divider()
+
+        Button(role: .destructive) {
+            model.requestDelete(tracks)
+        } label: {
+            Label(deleteTitle, systemImage: "trash")
+        }
+    }
+
+    private var deleteTitle: String {
+        if tracks.allSatisfy({ !$0.isLocal }) { return "Remove from Library…" }
+        return tracks.count == 1 ? "Delete Song…" : "Delete \(tracks.count) Songs…"
     }
 
     private func addBookmark(for track: Track) {

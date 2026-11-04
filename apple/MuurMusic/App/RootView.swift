@@ -21,6 +21,14 @@ struct RootView: View {
             .preferredColorScheme(preferredScheme)
             .onOpenURL { url in model.handleIncomingURL(url) }
             .muurToast($model.toast)
+            .alert(deletionTitle, isPresented: deletionPresented, presenting: model.pendingDeletion) { tracks in
+                Button(tracks.allSatisfy { !$0.isLocal } ? "Remove" : "Delete", role: .destructive) {
+                    model.delete(tracks)
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { tracks in
+                Text(deletionMessage(tracks))
+            }
             .task {
                 // Keep widget artwork pruned and warm the discovery list once.
                 model.environment.discovery.start()
@@ -40,6 +48,28 @@ struct RootView: View {
                 }
             }
             #endif
+    }
+
+    private var deletionPresented: Binding<Bool> {
+        Binding(get: { model.pendingDeletion != nil }, set: { if !$0 { model.pendingDeletion = nil } })
+    }
+
+    private var deletionTitle: String {
+        guard let tracks = model.pendingDeletion else { return "" }
+        let remoteOnly = tracks.allSatisfy { !$0.isLocal }
+        if tracks.count == 1 {
+            return remoteOnly ? "Remove “\(tracks[0].displayTitle)” from your library?" : "Delete “\(tracks[0].displayTitle)”?"
+        }
+        return remoteOnly ? "Remove \(tracks.count) songs from your library?" : "Delete \(tracks.count) songs?"
+    }
+
+    private func deletionMessage(_ tracks: [Track]) -> String {
+        let local = tracks.filter(\.isLocal).count
+        if local == 0 { return "The originals stay on the server. Downloaded copies are deleted." }
+        if local == tracks.count {
+            return local == 1 ? "The song file is deleted from this device." : "The song files are deleted from this device."
+        }
+        return "Files on this device are deleted. Songs from servers only leave your library."
     }
 
     private var preferredScheme: ColorScheme? {
@@ -62,7 +92,7 @@ struct RootView: View {
     // MARK: iOS
 
     #if os(iOS)
-    /// Library hub, up to three pinned sections, then Search.
+    /// Library, Liked Songs, Add Songs, then Search.
     @ViewBuilder
     private var tabs: some View {
         if #available(iOS 26.1, *) {
@@ -92,11 +122,14 @@ struct RootView: View {
                     LibraryHomeView()
                 }
             }
-            ForEach(model.pinnedTabs, id: \.self) { tab in
-                Tab(AppSection(tab)?.title ?? "", systemImage: AppSection(tab)?.systemImage ?? "music.note", value: HomeTab.library(tab)) {
-                    NavigationStack {
-                        RootSectionDestination(section: AppSection(tab) ?? .songs)
-                    }
+            Tab("Liked", systemImage: "heart.fill", value: HomeTab.liked) {
+                NavigationStack {
+                    RootSectionDestination(section: .favorites)
+                }
+            }
+            Tab("Add Songs", systemImage: "plus.circle.fill", value: HomeTab.addSongs) {
+                NavigationStack {
+                    AddSongsView()
                 }
             }
             Tab("Search", systemImage: "magnifyingglass", value: HomeTab.search, role: .search) {
@@ -122,16 +155,20 @@ struct RootView: View {
             .tabItem { Label("Library", systemImage: "books.vertical.fill") }
             .tag(HomeTab.home)
 
-            ForEach(model.pinnedTabs, id: \.self) { tab in
-                let section = AppSection(tab) ?? .songs
-                // The inset goes on the stack, not the root view, so pushed screens keep the mini player.
-                NavigationStack {
-                    RootSectionDestination(section: section)
-                }
-                .withMiniPlayer(namespace: playerNamespace)
-                .tabItem { Label(section.title, systemImage: section.systemImage) }
-                .tag(HomeTab.library(tab))
+            // The inset goes on the stack, not the root view, so pushed screens keep the mini player.
+            NavigationStack {
+                RootSectionDestination(section: .favorites)
             }
+            .withMiniPlayer(namespace: playerNamespace)
+            .tabItem { Label("Liked", systemImage: "heart.fill") }
+            .tag(HomeTab.liked)
+
+            NavigationStack {
+                AddSongsView()
+            }
+            .withMiniPlayer(namespace: playerNamespace)
+            .tabItem { Label("Add Songs", systemImage: "plus.circle.fill") }
+            .tag(HomeTab.addSongs)
 
             NavigationStack {
                 SearchView()

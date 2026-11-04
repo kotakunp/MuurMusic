@@ -44,8 +44,13 @@ public final class PlaybackController: ObservableObject {
         didSet { updateMeterPublishing() }
     }
     @Published public private(set) var queue = PlaybackQueue()
-    /// Seconds into the current track (CUE window relative).
-    @Published public private(set) var position: Double = 0
+    /// Live position updates, published separately from the rest of the player state.
+    public let clock = PlaybackClock()
+    /// Seconds into the current track (CUE window relative). Observe `clock` to follow it live.
+    public private(set) var position: Double {
+        get { clock.position }
+        set { clock.position = newValue }
+    }
     @Published public private(set) var duration: Double = 0
     @Published public private(set) var isCrossfading = false
     @Published public private(set) var output: PlaybackOutput = .local {
@@ -447,7 +452,9 @@ public final class PlaybackController: ObservableObject {
                 guard let self, let renderer = self.dlnaRenderer else { return }
                 do {
                     let position = try await renderer.position()
-                    if position.durationSeconds > 0 { self.duration = position.durationSeconds }
+                    if position.durationSeconds > 0, self.duration != position.durationSeconds {
+                        self.duration = position.durationSeconds
+                    }
                     self.position = position.trackSeconds
                     if self.state == .playing && position.isStopped && !Task.isCancelled {
                         self.trackEndedNaturally()
@@ -707,7 +714,7 @@ public final class PlaybackController: ObservableObject {
         guard case .local = output else { return }
         guard let engine = active else { return }
         if let time = engine.currentTime { position = time }
-        if let total = engine.totalTime, total > 0 { duration = total }
+        if let total = engine.totalTime, total > 0, total != duration { duration = total }
         nowPlayingTick += 1
         if nowPlayingTick % 4 == 0 {
             nowPlayingManager.updateElapsed(position, rate: settings.playbackSpeed, isPlaying: state == .playing)

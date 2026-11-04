@@ -2,7 +2,7 @@ import SwiftUI
 import MuurCore
 import MuurAudio
 
-/// Favorite tracks.
+/// Liked songs (tracks marked with the heart).
 struct FavoritesView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
@@ -17,7 +17,7 @@ struct FavoritesView: View {
             } else if tracks.isEmpty {
                 EmptyStateView(
                     illustration: .library,
-                    title: "No favorites yet",
+                    title: "No liked songs yet",
                     message: "Tap the heart on any song and it curls up here. The cat approves.",
                     systemImage: "heart"
                 )
@@ -35,7 +35,7 @@ struct FavoritesView: View {
                 #endif
             }
         }
-        .navigationTitle("Favorites")
+        .navigationTitle("Liked Songs")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -44,7 +44,7 @@ struct FavoritesView: View {
                     Image(systemName: "shuffle")
                 }
                 .disabled(tracks.isEmpty)
-                .accessibilityLabel("Shuffle favorites")
+                .accessibilityLabel("Shuffle liked songs")
             }
         }
         .task { await observe() }

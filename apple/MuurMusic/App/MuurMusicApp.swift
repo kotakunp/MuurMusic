@@ -56,7 +56,7 @@ struct MuurMusicApp: App {
         .defaultPosition(.center)
 
         Window("MuurMusic", id: MuurWindowID.miniPlayer.rawValue) {
-            MiniPlayerWindowView()
+            MiniPlayerWindowView(clock: model.player.clock)
                 .environmentObject(model)
                 .environmentObject(model.player)
         }

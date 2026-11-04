@@ -53,7 +53,7 @@ struct SettingsView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Re-reads every file from disk. Play counts and favorites are kept.")
+            Text("Re-reads every file from disk. Play counts and liked songs are kept.")
         }
         #if os(iOS)
         .fullScreenCover(isPresented: $isShowingVisualizer) {
@@ -110,12 +110,14 @@ struct SettingsView: View {
                 Text("Visualizer").tag(NowPlayingStyle.visualizer)
             }
             Toggle("Show Hi-Res Badges", isOn: bind(\.showHiResBadges))
-            Toggle("Haptics (purr on favorite)", isOn: bind(\.haptics))
+            Toggle("Haptics (purr when you like a song)", isOn: bind(\.haptics))
+            #if os(macOS)
             NavigationLink {
                 TabOrderView()
             } label: {
                 Label("Customize Tabs", systemImage: "rectangle.3.group")
             }
+            #endif
         }
     }
 

@@ -14,9 +14,13 @@ struct AddSourceView: View {
 
     let editing: SourceConfig?
 
-    init(editing: SourceConfig? = nil) {
+    init(editing: SourceConfig? = nil, kind: SourceKind? = nil) {
         self.editing = editing
-        _kind = State(initialValue: editing?.kind ?? .smb)
+        let initialKind = editing?.kind ?? kind ?? .smb
+        _kind = State(initialValue: initialKind)
+        if editing == nil, let port = initialKind.defaultPort {
+            _portText = State(initialValue: String(port))
+        }
     }
 
     // Common fields

@@ -11,7 +11,7 @@ struct LibraryHomeView: View {
 
     private static let sections: [AppSection] = [
         .playlists, .artists, .albums, .songs, .genres, .albumArtists, .composers,
-        .folders, .favorites, .downloads, .history, .sources, .files,
+        .folders, .downloads, .history, .sources, .files,
     ]
 
     private let columns = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]

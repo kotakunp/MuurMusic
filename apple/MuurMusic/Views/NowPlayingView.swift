@@ -174,7 +174,7 @@ struct NowPlayingView: View {
                     .modifier(CircleIconStyle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(track.favorite ? "Remove from favorites" : "Add to favorites")
+            .accessibilityLabel(track.favorite ? "Remove from Liked Songs" : "Add to Liked Songs")
         }
         moreMenu
     }
@@ -195,7 +195,7 @@ struct NowPlayingView: View {
 
     private var controls: some View {
         VStack(spacing: 18) {
-            NowPlayingScrubber(centerText: statusText)
+            NowPlayingScrubber(clock: player.clock, centerText: { statusText })
             transportRow
             volumeRow
             bottomBar
@@ -452,12 +452,13 @@ struct NowPlayingView: View {
         }
     }
 
+    // No live countdown: a label that changes every second rebuilds the open menu and resets its scrolling.
     private var sleepLabel: String {
-        if player.sleepTimer == .endOfTrack { return "Sleep: End of Track" }
-        if let remaining = player.sleepTimerRemaining, player.sleepTimer != .off {
-            return "Sleep: \(MuurFormat.duration(remaining))"
+        switch player.sleepTimer {
+        case .off: return "Sleep Timer"
+        case .endOfTrack: return "Sleep: End of Track"
+        default: return "Sleep Timer On"
         }
-        return "Sleep Timer"
     }
 
     private func sleepOption(_ title: String, timer: SleepTimerMode) -> some View {
@@ -488,8 +489,10 @@ private struct CircleIconStyle: ViewModifier {
 /// Apple Music style scrubber: a thin bar that thickens while dragging, times underneath.
 struct NowPlayingScrubber: View {
     @EnvironmentObject var player: PlaybackController
+    @ObservedObject var clock: PlaybackClock
 
-    var centerText: String
+    /// Re-read on every clock tick so countdowns like the sleep timer stay live.
+    var centerText: () -> String
 
     @State private var dragPosition: Double?
 
@@ -499,7 +502,7 @@ struct NowPlayingScrubber: View {
     private static func clock(_ seconds: Double) -> String {
         seconds > 0.5 ? MuurFormat.duration(seconds) : "0:00"
     }
-    private var shownPosition: Double { dragPosition ?? player.position }
+    private var shownPosition: Double { dragPosition ?? clock.position }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -535,7 +538,7 @@ struct NowPlayingScrubber: View {
                 Text(Self.clock(shownPosition))
                     .frame(width: 60, alignment: .leading)
                 Spacer(minLength: 4)
-                Text(centerText)
+                Text(centerText())
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 4)

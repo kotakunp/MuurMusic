@@ -24,7 +24,7 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .sources: return "Sources"
         case .files: return "Files"
         case .downloads: return "Downloads"
-        case .favorites: return "Favorites"
+        case .favorites: return "Liked Songs"
         case .history: return "History"
         case .search: return "Search"
         case .settings: return "Settings"
@@ -91,8 +91,10 @@ final class AppModel: ObservableObject {
     @Published var nowPlayingWindowRequest = 0
     /// Playlist the user wants to see (deep link).
     @Published var openPlaylistID: Int64?
-    /// Navigation path of the iOS Library tab (deep links to unpinned sections push here).
+    /// Navigation path of the iOS Library tab (deep links to library sections push here).
     @Published var homePath = NavigationPath()
+    /// Songs waiting for the user to confirm deletion.
+    @Published var pendingDeletion: [Track]?
 
     // Shared observed state
     @Published private(set) var sources: [SourceConfig] = []
@@ -285,24 +287,56 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Library sections pinned as their own iOS tabs, between Library and Search.
-    var pinnedTabs: [LibraryTab] {
-        Array(settings.tabOrder.filter { $0 != .search }.prefix(3))
-    }
-
     /// Selects the tab (iOS) or sidebar row (macOS) that shows the given section,
     /// pushing onto the Library stack when the section has no tab of its own.
     func navigate(to section: AppSection) {
         self.section = section
-        if section == .search {
+        switch section {
+        case .search:
             tab = .search
-        } else if let pinned = pinnedTabs.first(where: { AppSection($0) == section }) {
-            tab = .library(pinned)
-        } else {
+        case .favorites:
+            tab = .liked
+        default:
             tab = .home
             var path = NavigationPath()
             path.append(section)
             homePath = path
+        }
+    }
+
+    /// Opens the list of ways to add music (the Add Songs tab on iOS, Sources on macOS).
+    func showAddSongs() {
+        #if os(iOS)
+        tab = .addSongs
+        #else
+        navigate(to: .sources)
+        #endif
+    }
+
+    // MARK: Deleting songs
+
+    func requestDelete(_ tracks: [Track]) {
+        guard !tracks.isEmpty else { return }
+        pendingDeletion = tracks
+    }
+
+    /// Deletes local song files and drops every chosen song from the library.
+    func delete(_ tracks: [Track]) {
+        Task {
+            if let current = player.currentTrack,
+               tracks.contains(where: { $0.libraryKey == current.libraryKey || ($0.isLocal && $0.sourceURI == current.sourceURI) }) {
+                if player.queue.following.isEmpty { player.stop() } else { player.next() }
+            }
+            for track in tracks where !track.isLocal {
+                await environment.downloads.removeDownload(for: track)
+            }
+            do {
+                try await environment.scanner.delete(tracks)
+                let message = tracks.count == 1 ? "Deleted “\(tracks[0].displayTitle)”" : "Deleted \(tracks.count) songs"
+                showToast(.success(message, systemImage: "trash.fill"))
+            } catch {
+                showError(error)
+            }
         }
     }
 }
@@ -311,7 +345,7 @@ final class AppModel: ObservableObject {
 enum HomeTab: Hashable {
     /// The Library hub with every section.
     case home
-    /// A section pinned from the customizable tab order.
-    case library(LibraryTab)
+    case liked
+    case addSongs
     case search
 }

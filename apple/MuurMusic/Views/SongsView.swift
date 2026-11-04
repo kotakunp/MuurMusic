@@ -32,9 +32,9 @@ struct SongsView: View {
                 EmptyStateView(
                     illustration: .library,
                     title: "No music yet",
-                    message: "Add a folder or connect a source and the cat will fetch your songs.",
-                    actionTitle: "Add Music",
-                    action: { model.navigate(to: .sources) }
+                    message: "Import songs, send them over Wi-Fi, or connect a server and the cat will fetch them.",
+                    actionTitle: "Add Songs",
+                    action: { model.showAddSongs() }
                 )
             } else {
                 List {

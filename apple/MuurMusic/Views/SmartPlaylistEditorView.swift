@@ -265,7 +265,7 @@ struct SmartRuleRow: View {
         case .sampleRate: return "Sample Rate"
         case .duration: return "Length"
         case .title: return "Title"
-        case .favorite: return "Favorite"
+        case .favorite: return "Liked"
         case .lastPlayed: return "Last Played"
         case .bpm: return "BPM"
         case .bitrate: return "Bitrate"

@@ -7,6 +7,7 @@ import MuurAudio
 struct MiniPlayerWindowView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
+    @ObservedObject var clock: PlaybackClock
     @Environment(\.openWindow) private var openWindow
     @State private var isSeeking = false
     @State private var seekPosition: Double = 0
@@ -48,7 +49,7 @@ struct MiniPlayerWindowView: View {
                 }
                 .controlSize(.small)
                 HStack {
-                    Text(MuurFormat.duration(isSeeking ? seekPosition : player.position))
+                    Text(MuurFormat.duration(isSeeking ? seekPosition : clock.position))
                     Spacer()
                     Text(MuurFormat.duration(player.duration))
                 }
@@ -71,7 +72,7 @@ struct MiniPlayerWindowView: View {
     }
 
     private var sliderValue: Binding<Double> {
-        Binding(get: { isSeeking ? seekPosition : player.position },
+        Binding(get: { isSeeking ? seekPosition : clock.position },
                 set: { seekPosition = $0 })
     }
 }

@@ -625,6 +625,31 @@ public final class LibraryScanner: ObservableObject {
         return copied
     }
 
+    // MARK: Delete
+
+    /// Deletes songs. Local files are removed from disk, so the next scan does not bring them back, along with
+    /// every library entry that points at them (CUE sheet tracks share one file). Remote songs only leave the library.
+    public func delete(_ tracks: [Track]) async throws {
+        let fileURIs = Array(Set(tracks.filter(\.isLocal).map(\.sourceURI)))
+        let ids = tracks.compactMap(\.id)
+        try await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            for uri in fileURIs {
+                guard let url = URL(string: uri), url.isFileURL, fm.fileExists(atPath: url.path) else { continue }
+                try fm.removeItem(at: url)
+            }
+        }.value
+        try await repository.database.write { db in
+            for uri in fileURIs {
+                try db.execute(sql: "DELETE FROM tracks WHERE sourceURI = ?", arguments: [uri])
+            }
+            if !ids.isEmpty {
+                let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+                try db.execute(sql: "DELETE FROM tracks WHERE id IN (\(placeholders))", arguments: StatementArguments(ids))
+            }
+        }
+    }
+
     nonisolated static func uniqueURL(_ url: URL) -> URL {
         let fm = FileManager.default
         guard fm.fileExists(atPath: url.path) else { return url }
