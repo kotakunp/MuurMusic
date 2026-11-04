@@ -1,0 +1,147 @@
+name: MuurMusic
+
+# ---------------------------------------------------------------------------
+# Target / scheme strategy
+# ---------------------------------------------------------------------------
+# There is ONE app target ("MuurMusic") and ONE widget extension target
+# ("MuurWidgets"), each built as a *multi-platform* target:
+#
+#   SDKROOT             = auto                    (SDK follows the destination)
+#   SUPPORTED_PLATFORMS = iphoneos iphonesimulator macosx
+#
+# This mirrors the Xcode "Multiplatform App" template: a single target +
+# single scheme builds for iOS and macOS. Platform-specific behaviour lives in
+# `#if os(iOS)` / `#if os(macOS)` / `canImport(...)` guards inside the sources,
+# so every source file is assigned to every destination.
+#
+# The scheme is named exactly "MuurMusic", so CI can run:
+#   xcodebuild -scheme MuurMusic -destination "generic/platform=iOS Simulator"
+#   xcodebuild -scheme MuurMusic -destination "generic/platform=macOS"
+# and both build the same target with the destination's SDK.
+#
+# XcodeGen has no first-class "multiplatform" platform value, so the targets
+# declare `platform: iOS` and then override SDKROOT / SUPPORTED_PLATFORMS in
+# their base settings (explicit settings win over XcodeGen's derived ones).
+# ---------------------------------------------------------------------------
+
+options:
+  bundleIdPrefix: app.muur
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_EMIT_LOC_STRINGS: YES
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  MuurKit:
+    path: Packages/MuurKit
+
+targets:
+  # =========================================================================
+  # MuurMusic — the app (iOS 17+ and macOS 14+)
+  # =========================================================================
+  MuurMusic:
+    type: application
+    platform: iOS # overridden to a multi-platform target via settings below
+    deploymentTarget: "17.0"
+    configFiles:
+      Debug: Config.xcconfig
+      Release: Config.xcconfig
+    sources:
+      - path: MuurMusic
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    dependencies:
+      - package: MuurKit
+        product: MuurCore
+      - package: MuurKit
+        product: MuurAudio
+      - target: MuurWidgets
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.muur.music
+        PRODUCT_NAME: MuurMusic
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: MuurMusic/Info.plist
+        # Multi-platform target (see header comment).
+        SDKROOT: auto
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": MuurMusic/MuurMusic-iOS.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": MuurMusic/MuurMusic-macOS.entitlements
+        "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": YES
+        "LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) @executable_path/Frameworks"
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks"
+        "SWIFT_ACTIVE_COMPILATION_CONDITIONS": "$(inherited)"
+
+  # =========================================================================
+  # MuurWidgets — WidgetKit extension (iOS 17+ and macOS 14+)
+  # =========================================================================
+  # Widget extensions are plain app extensions; `bundle.app-extension` is the
+  # most robust XcodeGen product type and XcodeGen embeds it into PlugIns.
+  MuurWidgets:
+    type: bundle.app-extension
+    platform: iOS # overridden to a multi-platform target via settings below
+    deploymentTarget: "17.0"
+    sources:
+      - path: MuurWidgets
+        excludes:
+          - "Info.plist"
+          - "*.entitlements"
+    dependencies:
+      - package: MuurKit
+        product: MuurWidgetKitSupport
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.muur.music.widgets
+        PRODUCT_NAME: MuurWidgets
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: MuurWidgets/Info.plist
+        SDKROOT: auto
+        SUPPORTED_PLATFORMS: "iphoneos iphonesimulator macosx"
+        IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: MuurWidgets/MuurWidgets.entitlements
+        "LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+schemes:
+  # The single scheme CI builds for both destinations (see header comment).
+  MuurMusic:
+    build:
+      targets:
+        MuurMusic: all
+        MuurWidgets: all
+      parallelizeBuild: true
+    run:
+      config: Debug
+      environmentVariables:
+        - variable: OS_ACTIVITY_MODE
+          value: default
+          isEnabled: false
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

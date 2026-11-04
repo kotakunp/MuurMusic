@@ -1,0 +1,26 @@
+// MuurMusic build configuration.
+//
+// OAuth client IDs for the cloud sources are read from the app's Info.plist
+// (see apple/Packages/MuurKit/API.md). They are injected into Info.plist as
+// build settings so real keys never have to live in git:
+//
+//   1. Copy Secrets.xcconfig.example to Secrets.xcconfig (same folder).
+//   2. Fill in the keys you use; leave the others empty.
+//   3. Secrets.xcconfig is git-ignored.
+//
+// A missing key simply makes the matching cloud source report
+// "not configured" in the UI. CI builds without any secrets.
+
+#include? "Secrets.xcconfig"
+
+MUUR_DROPBOX_CLIENT_ID =
+MUUR_GOOGLE_CLIENT_ID =
+MUUR_ONEDRIVE_CLIENT_ID =
+MUUR_BOX_CLIENT_ID =
+MUUR_BOX_CLIENT_SECRET =
+MUUR_PCLOUD_CLIENT_ID =
+
+// Google sign-in needs the reversed client id ("com.googleusercontent.apps.<id>")
+// as a URL scheme in Info.plist. Derived from MUUR_GOOGLE_CLIENT_ID by hand:
+// paste the reversed id here when you configure Google Drive.
+MUUR_GOOGLE_URL_SCHEME =

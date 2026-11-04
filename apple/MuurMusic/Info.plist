@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>MuurMusic</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.music</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+
+	<!-- OAuth client IDs (see Config.xcconfig / Secrets.xcconfig and API.md). -->
+	<key>MUUR_DROPBOX_CLIENT_ID</key>
+	<string>$(MUUR_DROPBOX_CLIENT_ID)</string>
+	<key>MUUR_GOOGLE_CLIENT_ID</key>
+	<string>$(MUUR_GOOGLE_CLIENT_ID)</string>
+	<key>MUUR_ONEDRIVE_CLIENT_ID</key>
+	<string>$(MUUR_ONEDRIVE_CLIENT_ID)</string>
+	<key>MUUR_BOX_CLIENT_ID</key>
+	<string>$(MUUR_BOX_CLIENT_ID)</string>
+	<key>MUUR_BOX_CLIENT_SECRET</key>
+	<string>$(MUUR_BOX_CLIENT_SECRET)</string>
+	<key>MUUR_PCLOUD_CLIENT_ID</key>
+	<string>$(MUUR_PCLOUD_CLIENT_ID)</string>
+
+	<!-- muurmusic:// deep links + OAuth redirects; Google needs its reversed client id scheme. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.muur.music</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>muurmusic</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.muur.music.google</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(MUUR_GOOGLE_URL_SCHEME)</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Local network discovery (Bonjour / SSDP). -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>MuurMusic finds music servers and shares on your local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_smb._tcp</string>
+		<string>_webdav._tcp</string>
+		<string>_webdavs._tcp</string>
+		<string>_sftp-ssh._tcp</string>
+		<string>_ftp._tcp</string>
+		<string>_plexmediasvr._tcp</string>
+	</array>
+
+	<!-- iOS background playback. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+
+	<!-- Files app / Finder file sharing. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>BrandMark</string>
+	</dict>
+
+	<!-- Usage strings (kept generic; only exercised when the feature is used). -->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>MuurMusic plays your music library.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>MuurMusic stores and plays the music files you add.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MuurMusic lets you pick artwork images for your music.</string>
+
+	<!-- "Open in MuurMusic" for audio files, playlists and MuurMusic interchange files. -->
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Audio File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.audio</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Playlist</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>m3u</string>
+				<string>m3u8</string>
+				<string>cue</string>
+				<string>pls</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>MuurMusic Preset</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>app.muur.eq</string>
+				<string>app.muur.dsp</string>
+				<string>app.muur.smart</string>
+			</array>
+		</dict>
+	</array>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.muur.eq</string>
+			<key>UTTypeDescription</key>
+			<string>MuurMusic EQ Presets</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>muureq.json</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.muur.dsp</string>
+			<key>UTTypeDescription</key>
+			<string>MuurMusic DSP Chain</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>muurdsp.json</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>app.muur.smart</string>
+			<key>UTTypeDescription</key>
+			<string>MuurMusic Smart Playlist</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>muursmart.json</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+
+	<!-- CarPlay audio scene. Compiles everywhere; at runtime iOS only attaches it
+	     when the provisioning profile carries the CarPlay audio entitlement
+	     (see MuurMusic-iOS.entitlements and BUILD.md). -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>CPTemplateApplicationSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>CPTemplateApplicationScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>MuurMusic-CarPlay</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+</dict>
+</plist>

@@ -1,0 +1,69 @@
+name: Apple
+
+on:
+  push:
+    branches: [main]
+    paths: ["apple/**", "docs/specs/**", ".github/workflows/apple.yml"]
+  pull_request:
+    paths: ["apple/**", "docs/specs/**", ".github/workflows/apple.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: apple-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: MuurKit (macOS build + tests)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode version
+        run: xcodebuild -version && swift --version
+      - name: Build and test MuurKit
+        working-directory: apple/Packages/MuurKit
+        run: swift test 2>&1 | tee ../../../muurkit.log
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: muurkit-log
+          path: muurkit.log
+
+  app:
+    name: App (${{ matrix.platform }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            destination: "generic/platform=iOS Simulator"
+          - platform: macOS
+            destination: "generic/platform=macOS"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        working-directory: apple
+        run: xcodegen generate
+      - name: Build
+        working-directory: apple
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project MuurMusic.xcodeproj \
+            -scheme MuurMusic \
+            -destination "${{ matrix.destination }}" \
+            -skipPackagePluginValidation \
+            -skipMacroValidation \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | tee ../build-${{ matrix.platform }}.log | grep -E "error:|warning: unre|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" ../build-${{ matrix.platform }}.log
+      - name: Upload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}-log
+          path: build-${{ matrix.platform }}.log

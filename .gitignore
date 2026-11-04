@@ -20,6 +20,7 @@ TestResults/
 artifacts/
 
 # Secrets (local OAuth client IDs etc.)
+apple/Secrets.xcconfig
 apple/MuurMusic/Config/Secrets.xcconfig
 windows/src/MuurMusic.App/appsettings.Local.json
 
