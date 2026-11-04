@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: Install ffmpeg (decode tests generate fixtures with it)
+        run: choco install ffmpeg -y --no-progress
       - name: Build
         run: dotnet build windows/MuurMusic.sln -c Release
       - name: Test

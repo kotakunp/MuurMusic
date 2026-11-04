@@ -30,4 +30,23 @@
     <ProjectReference Include="..\MuurMusic.Core\MuurMusic.Core.csproj" />
     <ProjectReference Include="..\MuurMusic.Audio\MuurMusic.Audio.csproj" />
   </ItemGroup>
+  <!--
+    dotnet publish of an unpackaged WinUI app does not carry the compiled XAML (.xbf), PRI
+    and Assets files into the publish directory, which makes every page fail XamlParseException
+    and every ms-appx:///Assets image render empty at runtime.
+    Inject them into ResolvedFileToPublish so publish copies them with their folder structure.
+  -->
+  <Target Name="IncludeCompiledXamlInPublish" AfterTargets="Build">
+    <ItemGroup>
+      <_CompiledXaml Include="$(OutDir)**\*.xbf;$(OutDir)Assets\**\*" />
+      <ResolvedFileToPublish Include="@(_CompiledXaml)">
+        <RelativePath>$([MSBuild]::MakeRelative('$(OutDir)', '%(_CompiledXaml.FullPath)'))</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+      <ResolvedFileToPublish Include="$(OutDir)$(AssemblyName).pri" Condition="Exists('$(OutDir)$(AssemblyName).pri')">
+        <RelativePath>$(AssemblyName).pri</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 </Project>

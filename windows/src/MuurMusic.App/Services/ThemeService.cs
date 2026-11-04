@@ -65,6 +65,14 @@ public sealed class ThemeService
             Parse(string.Equals(name, "Violet", StringComparison.OrdinalIgnoreCase) ? "#FFB23F" : "#8B6CFF"));
         MutateThemeColor("MuurAccentTextColor", "Dark", Parse(hex));
         MutateThemeColor("MuurAccentTextColor", "Light", Parse(textHex));
+        var baseColor = Parse(hex);
+        MutateColor("SystemAccentColor", baseColor);
+        MutateColor("SystemAccentColorLight1", Mix(baseColor, 255, 0.12));
+        MutateColor("SystemAccentColorLight2", Mix(baseColor, 255, 0.24));
+        MutateColor("SystemAccentColorLight3", Mix(baseColor, 255, 0.36));
+        MutateColor("SystemAccentColorDark1", Mix(baseColor, 0, 0.15));
+        MutateColor("SystemAccentColorDark2", Mix(baseColor, 0, 0.30));
+        MutateColor("SystemAccentColorDark3", Mix(baseColor, 0, 0.45));
         // Re-resolve theme-dependent brushes that reference MuurAccentTextColor.
         if (App.CurrentWindow?.Content is FrameworkElement root)
         {
@@ -88,6 +96,17 @@ public sealed class ThemeService
                 && rd.TryGetValue(key, out var v) && v is Windows.UI.Color)
                 rd[key] = color;
         }
+    }
+
+    // Merged dictionaries loaded via Source reject writes, so overrides go into the root dictionary,
+    // which wins over merged dictionaries during lookup.
+    private static void MutateColor(string key, Windows.UI.Color color) =>
+        Application.Current.Resources[key] = color;
+
+    private static Windows.UI.Color Mix(Windows.UI.Color c, byte target, double amount)
+    {
+        byte Blend(byte v) => (byte)Math.Round(v + (target - v) * amount);
+        return new Windows.UI.Color { A = 255, R = Blend(c.R), G = Blend(c.G), B = Blend(c.B) };
     }
 
     private static Windows.UI.Color Parse(string hex)
