@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var isShowingVisualizer = false
     @State private var isPickingFolder = false
     @State private var showRebuildConfirm = false
+    @State private var folderToRemove: WatchedFolder?
 
     private var settings: MuurSettings { model.settings }
 
@@ -243,29 +244,9 @@ struct SettingsView: View {
     // MARK: Library
 
     private var librarySection: some View {
-        Section("Library") {
+        Section {
             ForEach(model.watchedFolders) { folder in
-                HStack {
-                    Toggle(isOn: folderBinding(folder)) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(folder.name)
-                                .lineLimit(1)
-                            Text(folder.path)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                    }
-                    Button(role: .destructive) {
-                        removeFolder(folder)
-                    } label: {
-                        Image(systemName: "minus.circle")
-                            .foregroundStyle(MuurTheme.danger)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Remove folder")
-                }
+                folderRow(folder)
             }
             Button {
                 pickFolder()
@@ -293,8 +274,119 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        } header: {
+            Text("Library")
+        } footer: {
+            #if os(iOS)
+            if model.watchedFolders.contains(where: { !$0.isAppDocuments }) {
+                Text("Swipe left on a folder to remove it. Its songs leave your library, but the files stay where they are.")
+            }
+            #endif
         }
     }
+
+    #if os(iOS)
+    private func folderRow(_ folder: WatchedFolder) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: folder.isAppDocuments ? "iphone" : "folder.fill")
+                .foregroundStyle(.tint)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(folderTitle(folder))
+                    .lineLimit(1)
+                Text(folderLocation(folder))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.head)
+            }
+            Spacer(minLength: 8)
+            Toggle(folderTitle(folder), isOn: folderBinding(folder))
+                .labelsHidden()
+        }
+        // A destructive role would animate the row away before the removal is confirmed.
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if !folder.isAppDocuments {
+                Button {
+                    folderToRemove = folder
+                } label: {
+                    Label("Remove", systemImage: "trash")
+                }
+                .tint(MuurTheme.danger)
+            }
+        }
+        .contextMenu {
+            Button {
+                model.environment.scanner.scan(folderID: folder.id)
+            } label: {
+                Label("Rescan Folder", systemImage: "arrow.clockwise")
+            }
+            if !folder.isAppDocuments {
+                Button(role: .destructive) {
+                    folderToRemove = folder
+                } label: {
+                    Label("Remove Folder…", systemImage: "trash")
+                }
+            }
+        }
+        .removeFolderDialog(folder, pending: $folderToRemove, remove: removeFolder)
+    }
+
+    private var deviceFolderName: String { "On My \(UIDevice.current.model)" }
+
+    private func folderTitle(_ folder: WatchedFolder) -> String {
+        folder.isAppDocuments ? deviceFolderName : folder.name
+    }
+
+    /// Where the folder lives as the Files app names it, instead of the raw sandbox path.
+    private func folderLocation(_ folder: WatchedFolder) -> String {
+        if folder.isAppDocuments {
+            let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "MuurMusic"
+            return "Files › \(deviceFolderName) › \(appName)"
+        }
+        let parts = folder.path.split(separator: "/").map(String.init)
+        if let index = parts.firstIndex(of: "com~apple~CloudDocs") {
+            return (["iCloud Drive"] + parts[(index + 1)...]).joined(separator: " › ")
+        }
+        if let index = parts.firstIndex(of: "File Provider Storage") {
+            return ([deviceFolderName] + parts[(index + 1)...]).joined(separator: " › ")
+        }
+        // External drives mount under LiveFiles/<provider>/<volume>/…
+        if let index = parts.firstIndex(of: "LiveFiles"), index + 2 < parts.count {
+            return parts[(index + 2)...].joined(separator: " › ")
+        }
+        return parts.suffix(2).joined(separator: " › ")
+    }
+    #else
+    private func folderRow(_ folder: WatchedFolder) -> some View {
+        folderRowContent(folder)
+            .removeFolderDialog(folder, pending: $folderToRemove, remove: removeFolder)
+    }
+
+    private func folderRowContent(_ folder: WatchedFolder) -> some View {
+        HStack {
+            Toggle(isOn: folderBinding(folder)) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(folder.name)
+                        .lineLimit(1)
+                    Text(folder.path)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
+            Button(role: .destructive) {
+                folderToRemove = folder
+            } label: {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(MuurTheme.danger)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Remove folder")
+        }
+    }
+    #endif
 
     private func folderBinding(_ folder: WatchedFolder) -> Binding<Bool> {
         Binding(
@@ -336,9 +428,27 @@ struct SettingsView: View {
         Task {
             do {
                 try await model.environment.scanner.removeFolder(folder)
+                model.showToast(.success("Removed \(folder.name)", systemImage: "folder.badge.minus"))
             } catch {
                 model.showError(error)
             }
+        }
+    }
+}
+
+private extension View {
+    /// Asks before removing a watched folder. Attached to the folder's own row so the iOS 26
+    /// popover points at that row instead of the top of the form.
+    func removeFolderDialog(_ folder: WatchedFolder, pending: Binding<WatchedFolder?>,
+                            remove: @escaping (WatchedFolder) -> Void) -> some View {
+        confirmationDialog("Remove “\(folder.name)”?",
+                           isPresented: Binding(get: { pending.wrappedValue?.id == folder.id },
+                                                set: { if !$0 { pending.wrappedValue = nil } }),
+                           titleVisibility: .visible) {
+            Button("Remove Folder", role: .destructive) { remove(folder) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Its songs leave your library. The files stay where they are.")
         }
     }
 }
