@@ -281,22 +281,14 @@ struct NowPlayingView: View {
         volumeSlider
         #else
         if case .dlna = player.output {
-            volumeSlider
+            VolumeBar(value: player.volume) { player.volume = $0 }
         } else {
-            HStack(spacing: 12) {
-                Image(systemName: "speaker.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                SystemVolumeView()
-                    .frame(height: 30)
-                Image(systemName: "speaker.wave.3.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            SystemVolumeBar()
         }
         #endif
     }
 
+    #if os(macOS)
     private var volumeSlider: some View {
         HStack(spacing: 12) {
             Image(systemName: "speaker.fill")
@@ -308,6 +300,7 @@ struct NowPlayingView: View {
                 .foregroundStyle(.secondary)
         }
     }
+    #endif
 
     private var bottomBar: some View {
         HStack {

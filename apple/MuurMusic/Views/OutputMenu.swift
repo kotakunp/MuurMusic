@@ -82,18 +82,6 @@ struct OutputMenu: View {
 }
 
 #if os(iOS)
-/// The system volume slider with its AirPlay / Bluetooth route button. iOS apps cannot change the
-/// device volume directly, so local playback uses this instead of a SwiftUI slider.
-/// The Simulator renders it empty; it only appears on a device.
-struct SystemVolumeView: UIViewRepresentable {
-    func makeUIView(context: Context) -> MPVolumeView {
-        let view = MPVolumeView()
-        view.tintColor = .white
-        return view
-    }
-
-    func updateUIView(_ uiView: MPVolumeView, context: Context) {}
-}
 
 /// The system AirPlay / Bluetooth route picker.
 struct AirPlayButton: UIViewRepresentable {
