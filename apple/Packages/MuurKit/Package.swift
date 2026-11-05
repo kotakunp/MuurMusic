@@ -63,6 +63,11 @@ let package = Package(
             dependencies: ["MuurCore"],
             path: "Tests/MuurCoreTests"
         ),
+        .testTarget(
+            name: "MuurAudioTests",
+            dependencies: ["MuurAudio"],
+            path: "Tests/MuurAudioTests"
+        ),
     ],
     swiftLanguageVersions: [.v5]
 )

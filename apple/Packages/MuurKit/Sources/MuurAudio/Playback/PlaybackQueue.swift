@@ -37,7 +37,7 @@ public struct PlaybackQueue: Codable, Sendable, Equatable {
         self.repeatMode = repeatMode
         if startIndex >= 0 && startIndex < items.count {
             order = PlaybackQueue.makeOrder(count: items.count, startIndex: startIndex, shuffled: shuffleMode == .on)
-            position = 0
+            position = order.firstIndex(of: startIndex) ?? 0
         } else {
             order = Array(items.indices)
             position = items.isEmpty ? -1 : 0
