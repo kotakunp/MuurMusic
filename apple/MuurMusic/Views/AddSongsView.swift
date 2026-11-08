@@ -52,6 +52,18 @@ struct AddSongsView: View {
                 }
             }
 
+            Section {
+                NavigationLink {
+                    WebBrowserView(session: model.browser)
+                } label: {
+                    AddMethodRow(title: "Browse & Download",
+                                 detail: "Open music sites in a built-in browser. Songs and albums you download go straight into your library.",
+                                 systemImage: "safari")
+                }
+            } header: {
+                Text("From the Web")
+            }
+
             Section("From a Computer") {
                 NavigationLink {
                     WiFiTransferView()
@@ -221,7 +233,7 @@ struct AddSongsView: View {
 }
 
 /// An icon tile, a title and an optional one-line explanation.
-private struct AddMethodRow: View {
+struct AddMethodRow: View {
     let title: String
     var detail: String? = nil
     let systemImage: String

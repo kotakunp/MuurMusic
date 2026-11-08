@@ -76,6 +76,13 @@
 		<string>_plexmediasvr._tcp</string>
 	</array>
 
+	<!-- The in-app browser may open plain http:// pages; the app's own connections keep the defaults. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
+
 	<!-- iOS background playback. -->
 	<key>UIBackgroundModes</key>
 	<array>

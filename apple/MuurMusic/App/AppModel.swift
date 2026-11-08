@@ -96,6 +96,14 @@ final class AppModel: ObservableObject {
     /// Songs waiting for the user to confirm deletion.
     @Published var pendingDeletion: [Track]?
 
+    #if os(iOS)
+    /// The in-app browser, created on first use and kept so its page and downloads survive leaving it.
+    lazy var browser = WebBrowserSession(
+        importer: { [weak self] urls in try await self?.environment.scanner.importFiles(urls) ?? [] },
+        notify: { [weak self] toast in self?.showToast(toast) }
+    )
+    #endif
+
     // Shared observed state
     @Published private(set) var sources: [SourceConfig] = []
     @Published private(set) var isScanning = false
