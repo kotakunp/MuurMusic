@@ -35,19 +35,19 @@ struct AddSongsView: View {
 
     var body: some View {
         List {
-            Section("On This iPhone") {
+            Section("Files") {
                 Button {
                     pick(.files)
                 } label: {
                     AddMethodRow(title: "Import from Files",
-                                 detail: "Copy songs, ZIP files or playlists from iCloud Drive, On My iPhone or a USB drive.",
+                                 detail: "Copy music to your library.",
                                  systemImage: "square.and.arrow.down")
                 }
                 Button {
                     pick(.folder)
                 } label: {
                     AddMethodRow(title: "Link a Folder",
-                                 detail: "Play a folder where it is, without copying. Songs you add to it later show up too.",
+                                 detail: "Play files in place.",
                                  systemImage: "folder.badge.plus")
                 }
             }
@@ -57,7 +57,7 @@ struct AddSongsView: View {
                     WebBrowserView(session: model.browser)
                 } label: {
                     AddMethodRow(title: "Browse & Download",
-                                 detail: "Open music sites in a built-in browser. Songs and albums you download go straight into your library.",
+                                 detail: "Find music on the web.",
                                  systemImage: "safari")
                 }
             } header: {
@@ -70,15 +70,15 @@ struct AddSongsView: View {
                 } label: {
                     AddMethodRow(title: "Wi-Fi Transfer",
                                  detail: isWiFiRunning
-                                    ? "Running. Open the address it shows in a browser on your computer."
-                                    : "Upload from a browser on any computer on the same Wi-Fi.",
+                                    ? "Ready for uploads."
+                                    : "Send files over Wi-Fi.",
                                  systemImage: "wifi")
                 }
                 NavigationLink {
                     AddSongsGuideView(guide: .cable)
                 } label: {
                     AddMethodRow(title: "USB Cable",
-                                 detail: "Drag songs onto MuurMusic in Finder on a Mac, or in Apple Devices on Windows.",
+                                 detail: "Send files by cable.",
                                  systemImage: "cable.connector")
                 }
             }
@@ -88,7 +88,7 @@ struct AddSongsView: View {
                     AddSongsGuideView(guide: .share)
                 } label: {
                     AddMethodRow(title: "Share or Open In",
-                                 detail: "In Files, Safari, Mail or a chat app, tap Share and choose MuurMusic.",
+                                 detail: "Send music from another app.",
                                  systemImage: "square.and.arrow.up")
                 }
             }
@@ -234,17 +234,20 @@ struct AddSongsView: View {
 
 /// An icon tile, a title and an optional one-line explanation.
 struct AddMethodRow: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     let title: String
     var detail: String? = nil
     let systemImage: String
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: dynamicTypeSize.isAccessibilitySize ? .top : .center, spacing: 14) {
             Image(systemName: systemImage)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
                 .background(.tint, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityHidden(true)
             // Concrete colors: .primary/.secondary resolve against the tint inside a List button.
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

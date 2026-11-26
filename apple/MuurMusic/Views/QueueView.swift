@@ -7,6 +7,7 @@ struct QueueView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
     @State private var editMode: EditMode = .inactive
+    @State private var confirmsStopping = false
 
     var body: some View {
         Group {
@@ -45,6 +46,15 @@ struct QueueView: View {
                 .muurEditMode($editMode)
             }
         }
+        .alert("Stop and clear the queue?", isPresented: $confirmsStopping) {
+            Button("Cancel", role: .cancel) {}
+            Button("Stop and Clear Queue", role: .destructive) {
+                editMode = .inactive
+                player.clearQueue()
+            }
+        } message: {
+            Text("Playback stops and the queue is emptied.")
+        }
     }
 
     // Inline rather than toolbar items: Now Playing hosts this view without a navigation bar.
@@ -58,10 +68,21 @@ struct QueueView: View {
             }
             .disabled(player.queue.following.isEmpty && !editMode.isEditing)
             #endif
-            Button("Clear", role: .destructive) {
-                editMode = .inactive
-                player.clearQueue()
+            Menu {
+                Button("Clear Up Next", systemImage: "text.line.first.and.arrowtriangle.forward") {
+                    editMode = .inactive
+                    player.clearUpcoming()
+                }
+                .disabled(player.queue.following.isEmpty)
+                Button("Stop and Clear Queue…", systemImage: "stop.circle", role: .destructive) {
+                    confirmsStopping = true
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Queue Actions")
         }
         .font(.subheadline)
         .textCase(nil)

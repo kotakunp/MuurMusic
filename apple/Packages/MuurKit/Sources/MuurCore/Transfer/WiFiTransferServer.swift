@@ -339,7 +339,6 @@ final class WiFiTransferContext: @unchecked Sendable {
 
     func isAuthorized(_ head: HTTPRequestHead) -> Bool {
         guard requirePIN else { return true }
-        if let header = head.headers["x-muur-pin"], WiFiTransferContext.constantTimeEquals(header, pin) { return true }
         if let token = head.cookie("muur_session"), sessions.get().contains(token) { return true }
         return false
     }

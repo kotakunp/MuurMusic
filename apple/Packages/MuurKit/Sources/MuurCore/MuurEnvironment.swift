@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import MuurWidgetKitSupport
 
 /// The object graph of MuurCore services, created once at app launch with `MuurEnvironment.bootstrap(appGroup:)`.
@@ -38,6 +39,7 @@ public final class MuurEnvironment: ObservableObject {
     public var widgetStore: WidgetSharedStore { paths.widgetStore }
 
     private var started = false
+    private var watchFoldersObservation: AnyCancellable?
 
     /// Creates the shared environment (idempotent: later calls return the existing instance) and starts
     /// background services: default library folder registration, an incremental library scan, folder
@@ -118,8 +120,13 @@ public final class MuurEnvironment: ObservableObject {
             guard let self else { return }
             await self.scanner.ensureDefaultFolder()
             self.scanner.scanAll()
-            if self.settings.watchFolders {
-                self.scanner.startMonitoring()
+            let scanner = self.scanner
+            self.watchFoldersObservation = self.settings.$watchFolders.removeDuplicates().sink { [weak scanner] enabled in
+                if enabled {
+                    scanner?.startMonitoring()
+                } else {
+                    scanner?.stopMonitoring()
+                }
             }
         }
     }

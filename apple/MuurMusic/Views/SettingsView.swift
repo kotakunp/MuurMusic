@@ -8,6 +8,7 @@ import AppKit
 /// App settings: appearance, playback, audio output, storage, library, about.
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @State private var isShowingVisualizer = false
     @State private var isPickingFolder = false
@@ -83,26 +84,12 @@ struct SettingsView: View {
                 Text("Dark").tag(ThemePreference.dark)
                 Text("Light").tag(ThemePreference.light)
             }
-            HStack {
-                Text("Accent")
-                Spacer()
-                ForEach(AccentChoice.allCases, id: \.self) { choice in
-                    Button {
-                        settings.accent = choice
-                    } label: {
-                        Circle()
-                            .fill(choice.color)
-                            .frame(width: 26, height: 26)
-                            .overlay {
-                                if settings.accent == choice {
-                                    Image(systemName: "checkmark")
-                                        .font(.caption.weight(.bold))
-                                        .foregroundStyle(.white)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(choice.rawValue.capitalized)
+            if dynamicTypeSize.isAccessibilitySize {
+                accentPicker
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    accentSwatches
+                    accentPicker
                 }
             }
             Picker("Now Playing Style", selection: bind(\.nowPlayingStyle)) {
@@ -122,6 +109,42 @@ struct SettingsView: View {
         }
     }
 
+    private var accentPicker: some View {
+        Picker("Accent", selection: bind(\.accent)) {
+            ForEach(AccentChoice.allCases, id: \.self) { choice in
+                Text(choice.rawValue.capitalized).tag(choice)
+            }
+        }
+    }
+
+    private var accentSwatches: some View {
+        HStack(spacing: 0) {
+            Text("Accent")
+            Spacer(minLength: 8)
+            ForEach(AccentChoice.allCases, id: \.self) { choice in
+                Button {
+                    settings.accent = choice
+                } label: {
+                    Circle()
+                        .fill(choice.color)
+                        .frame(width: 26, height: 26)
+                        .overlay {
+                            if settings.accent == choice {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(choice.rawValue.capitalized)
+                .accessibilityAddTraits(settings.accent == choice ? .isSelected : [])
+            }
+        }
+    }
+
     // MARK: Playback
 
     private var playbackSection: some View {
@@ -137,11 +160,19 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
             if settings.crossfadeSeconds > 0 {
-                Toggle("Crossfade between tracks of the same album", isOn: bind(\.crossfadeSkipsSameAlbum))
+                Toggle("Skip Crossfade Within an Album", isOn: bind(\.crossfadeSkipsSameAlbum))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Gapless Playback")
+                    Text("Paused by Crossfade")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Toggle("Gapless Playback", isOn: bind(\.gapless))
             }
-            Toggle("Gapless Playback", isOn: bind(\.gapless))
             Toggle("Resume Queue on Launch", isOn: bind(\.resumeOnLaunch))
             Toggle("Fade Out on Sleep Timer", isOn: bind(\.sleepFadeOut))
+            #if os(macOS)
             Picker("Skip Back", selection: bind(\.skipBackInterval)) {
                 ForEach(Self.skipIntervals, id: \.self) { interval in
                     Text("\(Int(interval)) s").tag(interval)
@@ -152,6 +183,7 @@ struct SettingsView: View {
                     Text("\(Int(interval)) s").tag(interval)
                 }
             }
+            #endif
         }
     }
 

@@ -95,6 +95,7 @@ final class AppModel: ObservableObject {
     @Published var homePath = NavigationPath()
     /// Songs waiting for the user to confirm deletion.
     @Published var pendingDeletion: [Track]?
+    private var deletionRequest: Task<Void, Never>?
 
     #if os(iOS)
     /// The in-app browser, created on first use and kept so its page and downloads survive leaving it.
@@ -116,6 +117,7 @@ final class AppModel: ObservableObject {
 
     private var settingsForwarding: AnyCancellable?
     private var scanErrorForwarding: AnyCancellable?
+    private var playbackErrorForwarding: AnyCancellable?
 
     init() {
         let booted: MuurEnvironment
@@ -143,6 +145,9 @@ final class AppModel: ObservableObject {
         booted.scanner.$progress.assign(to: &$scanProgress)
         scanErrorForwarding = booted.scanner.$lastError.compactMap { $0 }.sink { [weak self] message in
             self?.toast = .error("Library scan failed: \(message)")
+        }
+        playbackErrorForwarding = player.$lastError.compactMap { $0 }.sink { [weak self] message in
+            self?.toast = .error(message)
         }
         observe()
         if let startupError {
@@ -211,10 +216,9 @@ final class AppModel: ObservableObject {
     }
 
     func toggleFavorite(_ track: Track) {
-        guard let id = track.id else { return }
         Task {
             do {
-                let isFavorite = try await environment.repository.toggleFavorite(trackID: id)
+                let isFavorite = try await player.updateFavorite(for: track)
                 if isFavorite { MuurHaptics.purr(enabled: settings.haptics) }
             } catch {
                 showError(error)
@@ -325,21 +329,32 @@ final class AppModel: ObservableObject {
 
     func requestDelete(_ tracks: [Track]) {
         guard !tracks.isEmpty else { return }
-        pendingDeletion = tracks
+        deletionRequest?.cancel()
+        deletionRequest = Task {
+            do {
+                let affected = try await environment.scanner.tracksAffectedByDeletion(tracks)
+                guard !Task.isCancelled else { return }
+                pendingDeletion = affected
+            } catch {
+                if !Task.isCancelled { showError(error) }
+            }
+        }
     }
 
     /// Deletes local song files and drops every chosen song from the library.
     func delete(_ tracks: [Track]) {
         Task {
-            if let current = player.currentTrack,
-               tracks.contains(where: { $0.libraryKey == current.libraryKey || ($0.isLocal && $0.sourceURI == current.sourceURI) }) {
-                if player.queue.following.isEmpty { player.stop() } else { player.next() }
-            }
-            for track in tracks where !track.isLocal {
-                await environment.downloads.removeDownload(for: track)
-            }
             do {
                 try await environment.scanner.delete(tracks)
+                let keys = Set(tracks.map(\.libraryKey))
+                let localURIs = Set(tracks.filter(\.isLocal).map(\.sourceURI))
+                let removed = player.queue.items.filter {
+                    keys.contains($0.track.libraryKey) || localURIs.contains($0.track.sourceURI)
+                }
+                player.removeFromQueue(ids: Set(removed.map(\.id)))
+                for track in tracks where !track.isLocal {
+                    await environment.downloads.removeDownload(for: track)
+                }
                 let message = tracks.count == 1 ? "Deleted “\(tracks[0].displayTitle)”" : "Deleted \(tracks.count) songs"
                 showToast(.success(message, systemImage: "trash.fill"))
             } catch {

@@ -44,6 +44,7 @@ public final class PlaybackController: ObservableObject {
         didSet { updateMeterPublishing() }
     }
     @Published public private(set) var queue = PlaybackQueue()
+    @Published public private(set) var isPreparing = false
     /// Live position updates, published separately from the rest of the player state.
     public let clock = PlaybackClock()
     /// Seconds into the current track (CUE window relative). Observe `clock` to follow it live.
@@ -76,16 +77,38 @@ public final class PlaybackController: ObservableObject {
     private var positionTimer: Timer?
     private var nowPlayingTick = 0
     private var sleepTask: Task<Void, Never>?
+    private var startTask: Task<Void, Never>?
+    private var startID: UUID?
+    private var startFailureBudget = 0
+    private var resumesSameTrack = false
+    private var activeDecoderID: UUID?
+    private var activeDecoderStarted = false
+    private var pendingSeek: Double?
+    private var gaplessTask: Task<Void, Never>?
+    private var pendingGaplessID: UUID?
+    private var gaplessNext: Transition?
     private var crossfadeTask: Task<Void, Never>?
+    private var crossfadeNext: Transition?
+    private var failedCrossfadeFrom: UUID?
     private var saveTask: Task<Void, Never>?
+    private var cachePinTask: Task<Void, Never>?
     private var dlnaRenderer: DLNARenderer?
+    private var castTask: Task<Void, Never>?
+    private var castFile: PlaybackFileLease?
+    private var castItemID: UUID?
     private let audioServer = LocalAudioServer()
     private var dlnaPollTask: Task<Void, Never>?
     private var cancellables: Set<AnyCancellable> = []
+    private var currentTrackObservation: Task<Void, Never>?
     private var trackStartedAt: Double = 0
     private var historyRecorded = false
-    private var enqueuedGaplessKey: String?
     private var restoredQueue = false
+
+    private struct Transition {
+        let itemID: UUID
+        let decoderID: UUID
+        var started = false
+    }
 
     public init(environment: MuurEnvironment) {
         self.environment = environment
@@ -98,6 +121,9 @@ public final class PlaybackController: ObservableObject {
         }
         configureRemoteCommands()
         observeSettings()
+        $queue.map { $0.currentTrack?.libraryKey }.removeDuplicates().sink { [weak self] key in
+            self?.observeFavorite(libraryKey: key)
+        }.store(in: &cancellables)
         #if !os(macOS)
         audioSession.onShouldPause = { [weak self] in self?.pause() }
         audioSession.onShouldResume = { [weak self] in self?.resume() }
@@ -130,6 +156,12 @@ public final class PlaybackController: ObservableObject {
         settings.$replayGainMode.dropFirst().sink { _ in apply() }.store(in: &cancellables)
         settings.$replayGainPreampDb.dropFirst().sink { _ in apply() }.store(in: &cancellables)
         settings.$preventClipping.dropFirst().sink { _ in apply() }.store(in: &cancellables)
+        settings.$gapless.dropFirst().sink { [weak self] _ in
+            Task { @MainActor in self?.reconcileTransitions() }
+        }.store(in: &cancellables)
+        settings.$crossfadeSeconds.dropFirst().sink { [weak self] _ in
+            Task { @MainActor in self?.reconcileTransitions() }
+        }.store(in: &cancellables)
         #if os(macOS)
         settings.$outputDeviceUID.dropFirst().sink { [weak self] _ in self?.applyOutputDevice() }.store(in: &cancellables)
         #endif
@@ -138,13 +170,16 @@ public final class PlaybackController: ObservableObject {
 
     /// Pushes EQ / speed / DSP / ReplayGain settings into both engines.
     public func applyAudioSettings() {
-        let preGain = currentTrack.map(replayGainDb(for:)) ?? 0
         for engine in engines {
-            engine.setSpeed(settings.playbackSpeed)
-            engine.applyEQ(gains: settings.eqBandGains, preampDb: settings.eqPreampDb, enabled: settings.eqEnabled)
-            engine.applyDSP(chainJSON: settings.dspChainJSON, dspEnabled: settings.dspEnabled, preGainDb: preGain,
-                            loudnessEnabled: settings.loudnessEnabled, loudnessBoostDb: settings.loudnessBoostDb)
+            applyAudioSettings(to: engine, for: engine === inactive && crossfadeNext != nil ? queue.nextItem?.track : currentTrack)
         }
+    }
+
+    private func applyAudioSettings(to engine: PlaybackEngine, for track: Track?) {
+        engine.setSpeed(settings.playbackSpeed)
+        engine.applyEQ(gains: settings.eqBandGains, preampDb: settings.eqPreampDb, enabled: settings.eqEnabled)
+        engine.applyDSP(chainJSON: settings.dspChainJSON, dspEnabled: settings.dspEnabled, preGainDb: track.map(replayGainDb(for:)) ?? 0,
+                        loudnessEnabled: settings.loudnessEnabled, loudnessBoostDb: settings.loudnessBoostDb)
     }
 
     /// ReplayGain (track or album) plus preamp, clamped to avoid clipping when enabled.
@@ -206,9 +241,9 @@ public final class PlaybackController: ObservableObject {
         guard !tracks.isEmpty else { return }
         let mode = shuffle.map { $0 ? ShuffleMode.on : ShuffleMode.off } ?? queue.shuffleMode
         let items = tracks.map { QueueItem(track: $0) }
+        finishTrackForHistory(skipped: false)
         queue = PlaybackQueue(items: items, startIndex: min(max(0, startIndex), items.count - 1), shuffleMode: mode,
                               repeatMode: queue.repeatMode)
-        finishTrackForHistory(skipped: false)
         startCurrent(at: 0)
     }
 
@@ -219,8 +254,10 @@ public final class PlaybackController: ObservableObject {
 
     /// Jumps to a queue entry.
     public func playItem(id: UUID) {
-        guard queue.jump(to: id) else { return }
+        var updated = queue
+        guard updated.jump(to: id) else { return }
         finishTrackForHistory(skipped: false)
+        queue = updated
         startCurrent(at: 0)
     }
 
@@ -228,6 +265,7 @@ public final class PlaybackController: ObservableObject {
         guard !tracks.isEmpty else { return }
         queue.insertNext(tracks.map { QueueItem(track: $0) })
         scheduleQueueSave()
+        reconcileTransitions()
         prefetchUpcoming()
     }
 
@@ -237,10 +275,13 @@ public final class PlaybackController: ObservableObject {
         queue.append(tracks.map { QueueItem(track: $0) })
         scheduleQueueSave()
         if wasEmpty && state == .stopped { startCurrent(at: 0) }
+        else { reconcileTransitions() }
     }
 
     public func removeFromQueue(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
         let removedCurrent = ids.contains(where: { $0 == queue.currentItem?.id })
+        if removedCurrent { finishTrackForHistory(skipped: false) }
         queue.remove(ids: ids)
         scheduleQueueSave()
         if removedCurrent {
@@ -249,34 +290,45 @@ public final class PlaybackController: ObservableObject {
             } else {
                 stop()
             }
-        }
+        } else { reconcileTransitions() }
+        prefetchUpcoming()
     }
 
     public func moveInQueue(from source: IndexSet, to destination: Int) {
         queue.moveInPlayOrder(from: source, to: destination)
         scheduleQueueSave()
+        reconcileTransitions()
+        prefetchUpcoming()
     }
 
     public func clearQueue() {
         stop()
         queue = PlaybackQueue(repeatMode: queue.repeatMode)
         scheduleQueueSave()
+        prefetchUpcoming()
+    }
+
+    public func clearUpcoming() {
+        removeFromQueue(ids: Set(queue.following.map(\.id)))
     }
 
     public func setShuffle(_ mode: ShuffleMode) {
         queue.setShuffle(mode)
         scheduleQueueSave()
+        reconcileTransitions()
         prefetchUpcoming()
     }
 
     public func cycleRepeatMode() {
         queue.repeatMode = queue.repeatMode.next
         scheduleQueueSave()
+        reconcileTransitions()
     }
 
     // MARK: - Transport
 
     public func togglePlayPause() {
+        if isPreparing { pause(); return }
         switch state {
         case .playing: pause()
         case .paused: resume()
@@ -286,22 +338,33 @@ public final class PlaybackController: ObservableObject {
     }
 
     public func pause() {
-        guard state == .playing else { return }
+        guard state == .playing || isPreparing else { return }
         if case .dlna = output {
+            castTask?.cancel()
+            castTask = nil
             Task { try? await dlnaRenderer?.pause() }
+        } else if isPreparing {
+            stopLocalAudio()
         } else {
+            cancelCrossfade()
             active?.pause()
         }
         state = .paused
         updateNowPlaying()
         publishWidgetSnapshot()
+        scheduleQueueSave()
     }
 
     public func resume() {
         guard state == .paused else { return }
         if case .dlna = output {
-            Task { try? await dlnaRenderer?.play() }
+            if let item = queue.currentItem, castItemID != item.id {
+                startCast(item, resumeAt: position, autoPlay: true)
+            } else {
+                Task { try? await dlnaRenderer?.play() }
+            }
         } else {
+            guard activeDecoderID != nil else { startCurrent(at: position); return }
             #if !os(macOS)
             try? audioSession.activate(mixWithOthers: settings.mixWithOthers)
             #endif
@@ -313,19 +376,22 @@ public final class PlaybackController: ObservableObject {
     }
 
     public func stop() {
-        crossfadeTask?.cancel()
-        isCrossfading = false
         finishTrackForHistory(skipped: false)
         if case .dlna = output {
+            castTask?.cancel()
+            castTask = nil
             Task { try? await dlnaRenderer?.stop() }
+            castFile = nil
+            castItemID = nil
         }
-        engines.forEach { $0.stop() }
+        stopLocalAudio()
         state = .stopped
         position = 0
         nowPlayingManager.clear()
         stopPositionTimer()
         publishWidgetSnapshot()
         scheduleQueueSave()
+        prefetchUpcoming()
     }
 
     /// Next track. When within the first seconds, counts as a skip for statistics.
@@ -353,9 +419,15 @@ public final class PlaybackController: ObservableObject {
         if case .dlna = output {
             Task { try? await dlnaRenderer?.seek(to: clamped) }
         } else {
-            active?.seek(to: clamped)
+            cancelCrossfade()
+            if activeDecoderStarted {
+                active?.seek(to: clamped)
+            } else {
+                pendingSeek = clamped
+            }
         }
         updateNowPlaying()
+        scheduleQueueSave()
     }
 
     public func skipForward() { seek(to: position + settings.skipForwardInterval) }
@@ -370,6 +442,7 @@ public final class PlaybackController: ObservableObject {
     public func setSleepTimer(_ mode: SleepTimerMode) {
         sleepTask?.cancel()
         sleepTimer = mode
+        reconcileTransitions()
         switch mode {
         case .off:
             sleepTimerEndsAt = nil
@@ -415,9 +488,17 @@ public final class PlaybackController: ObservableObject {
 
     /// Switches output to a renderer (or back with `setLocalOutput()`).
     public func setRenderer(_ renderer: DLNARenderer) {
-        let wasPlaying = state == .playing
+        let wasPlaying = state == .playing || isPreparing
         let resumeAt = position
-        engines.forEach { $0.stop() }
+        stopLocalAudio()
+        if wasPlaying { state = .playing }
+        castTask?.cancel()
+        castTask = nil
+        castFile = nil
+        castItemID = nil
+        if let previous = dlnaRenderer, previous !== renderer {
+            Task { try? await previous.stop() }
+        }
         dlnaRenderer = renderer
         output = .dlna(id: renderer.id, name: renderer.displayName)
         do {
@@ -426,8 +507,8 @@ public final class PlaybackController: ObservableObject {
             Log.audio.error("Local audio server failed: \(error.localizedDescription, privacy: .public)")
         }
         startDlnaPolling()
-        if let track = currentTrack {
-            Task { await cast(track, resumeAt: wasPlaying ? resumeAt : 0, autoPlay: wasPlaying) }
+        if let item = queue.currentItem {
+            startCast(item, resumeAt: wasPlaying ? resumeAt : 0, autoPlay: wasPlaying)
         }
     }
 
@@ -435,13 +516,18 @@ public final class PlaybackController: ObservableObject {
         guard case .dlna = output else { return }
         let resumeAt = position
         let wasPlaying = state == .playing
-        Task { try? await dlnaRenderer?.stop() }
+        let renderer = dlnaRenderer
+        Task { try? await renderer?.stop() }
+        castTask?.cancel()
+        castTask = nil
         dlnaRenderer = nil
+        castFile = nil
+        castItemID = nil
         output = .local
         dlnaPollTask?.cancel()
         audioServer.stop()
-        if currentTrack != nil {
-            startCurrent(at: wasPlaying ? resumeAt : 0)
+        if wasPlaying, currentTrack != nil {
+            startCurrent(at: resumeAt, continuing: true)
         }
     }
 
@@ -452,6 +538,10 @@ public final class PlaybackController: ObservableObject {
                 guard let self, let renderer = self.dlnaRenderer else { return }
                 do {
                     let position = try await renderer.position()
+                    guard !Task.isCancelled, self.dlnaRenderer === renderer, self.castTask == nil else {
+                        try await Task.sleep(for: .seconds(1))
+                        continue
+                    }
                     if position.durationSeconds > 0, self.duration != position.durationSeconds {
                         self.duration = position.durationSeconds
                     }
@@ -471,15 +561,28 @@ public final class PlaybackController: ObservableObject {
         }
     }
 
-    private func cast(_ track: Track, resumeAt: Double, autoPlay: Bool) async {
-        guard let renderer = dlnaRenderer else { return }
+    private func startCast(_ item: QueueItem, resumeAt: Double, autoPlay: Bool) {
+        castTask?.cancel()
+        castTask = Task { [weak self] in
+            await self?.cast(item, resumeAt: resumeAt, autoPlay: autoPlay)
+            if !Task.isCancelled { self?.castTask = nil }
+        }
+    }
+
+    private func cast(_ item: QueueItem, resumeAt: Double, autoPlay: Bool) async {
+        guard !Task.isCancelled, let renderer = dlnaRenderer else { return }
+        let track = item.track
         do {
             var mime = PathUtils.mimeType(forExtension: PathUtils.fileExtension(track.fileName))
             let url: URL
+            var file: PlaybackFileLease?
             if let resource = try await sources.remoteResource(for: track) {
                 url = resource.url
             } else {
-                let local = try await sources.playableURL(for: track)
+                let leasedFile = try await sources.acquirePlaybackFile(for: track)
+                file = leasedFile
+                let local = leasedFile.url
+                guard !Task.isCancelled, dlnaRenderer === renderer else { return }
                 if !audioServer.isRunning { try audioServer.start() }
                 guard let served = audioServer.url(for: local, fileName: track.fileName.isEmpty ? local.lastPathComponent : track.fileName) else {
                     throw MuurError.network("Could not start the local audio server")
@@ -487,19 +590,27 @@ public final class PlaybackController: ObservableObject {
                 url = served
                 mime = PathUtils.mimeType(forExtension: local.pathExtension)
             }
+            guard !Task.isCancelled, dlnaRenderer === renderer, queue.currentItem?.id == item.id,
+                  !autoPlay || state == .playing else { return }
             var artworkURL: URL?
             if let key = track.artworkKey, let original = environment.artwork.originalURL(for: key), audioServer.isRunning {
                 artworkURL = audioServer.url(for: original, fileName: original.lastPathComponent)
             }
             if autoPlay {
                 try await renderer.play(url: url, track: track, mimeType: mime, artworkURL: artworkURL)
-                if resumeAt > 1 { try await renderer.seek(to: resumeAt) }
+                if !Task.isCancelled && resumeAt > 1 { try await renderer.seek(to: resumeAt) }
             } else {
                 _ = try await UPnPSOAP.call("SetAVTransportURI", service: renderer.device.service(SSDPDiscovery.avTransport)!, arguments: [
                     ("InstanceID", "0"), ("CurrentURI", url.absoluteString),
                 ])
             }
+            if !Task.isCancelled, dlnaRenderer === renderer, queue.currentItem?.id == item.id, !autoPlay || state == .playing {
+                castFile = file
+                castItemID = item.id
+            }
         } catch {
+            guard !Task.isCancelled, dlnaRenderer === renderer, queue.currentItem?.id == item.id,
+                  !autoPlay || state == .playing else { return }
             lastError = error.localizedDescription
             Log.audio.error("Casting failed: \(error.localizedDescription, privacy: .public)")
         }
@@ -507,91 +618,167 @@ public final class PlaybackController: ObservableObject {
 
     // MARK: - Track lifecycle
 
-    private func startCurrent(at resumePosition: Double) {
-        guard let track = currentTrack else { return }
-        historyRecorded = false
-        enqueuedGaplessKey = nil
+    private func startCurrent(at resumePosition: Double, continuing: Bool = false, retries: Int? = nil) {
+        guard let item = queue.currentItem else { return }
+        let track = item.track
+        if !continuing {
+            historyRecorded = false
+            trackStartedAt = resumePosition
+        }
         duration = track.duration
         position = resumePosition
-        trackStartedAt = resumePosition
         if case .dlna = output {
             state = .playing
             updateNowPlaying()
             publishWidgetSnapshot()
-            Task { await cast(track, resumeAt: resumePosition, autoPlay: true) }
+            startCast(item, resumeAt: resumePosition, autoPlay: true)
             return
         }
-        crossfadeTask?.cancel()
-        isCrossfading = false
-        Task { [weak self] in
+        let retryCount = retries ?? (state == .playing && !continuing ? max(0, queue.count - 1) : 0)
+        stopLocalAudio()
+        state = .stopped
+        startFailureBudget = retryCount
+        resumesSameTrack = continuing
+        isPreparing = true
+        pendingSeek = resumePosition > 0.5 ? resumePosition : nil
+        let id = UUID()
+        startID = id
+        startTask = Task { [weak self] in
             guard let self else { return }
             do {
+                let file = try await self.sources.acquirePlaybackFile(for: track)
+                guard !Task.isCancelled, self.startID == id,
+                      self.queue.currentItem?.id == item.id, case .local = self.output else { return }
+                guard let engine = self.active else { throw MuurError.invalidData("Audio output is unavailable.") }
                 #if !os(macOS)
                 try self.audioSession.activate(mixWithOthers: self.settings.mixWithOthers)
                 #endif
-                let url = try await self.sources.playableURL(for: track)
-                guard self.currentTrack?.libraryKey == track.libraryKey else { return }
                 #if os(macOS)
                 self.applySampleRate(for: track)
                 #endif
-                let engine = self.active
-                engine?.snapFade(to: 1)
-                self.applyAudioSettings()
-                try engine?.play(track: track, url: url, dsdMode: self.settings.dsdMode, at: resumePosition)
-                self.state = .playing
-                self.startPositionTimer()
-                self.trackDidStart(track)
-            } catch is CancellationError {
-            } catch MuurError.cancelled {
+                self.activeDecoderID = id
+                engine.snapFade(to: 1)
+                self.applyAudioSettings(to: engine, for: track)
+                try engine.play(track: track, file: file, decoderID: id, dsdMode: self.settings.dsdMode)
+                // Some decoder errors arrive without a decoder callback.
+                try await Task.sleep(for: .seconds(15))
+                guard self.startID == id else { return }
+                self.failStart("The audio decoder did not start.")
             } catch {
-                self.lastError = error.localizedDescription
-                Log.audio.error("Playback failed: \(error.localizedDescription, privacy: .public)")
-                self.skipBrokenTrack()
+                guard !Task.isCancelled, self.startID == id else { return }
+                self.failStart(error.localizedDescription)
             }
         }
     }
 
-    private func trackDidStart(_ track: Track) {
+    private func failStart(_ message: String) {
+        lastError = message
+        Log.audio.error("Playback failed: \(message, privacy: .public)")
+        if startFailureBudget > 0, queue.advance() {
+            startCurrent(at: 0, retries: startFailureBudget - 1)
+            return
+        }
+        settleStopped()
+    }
+
+    private func stopLocalAudio() {
+        startTask?.cancel()
+        startTask = nil
+        startID = nil
+        startFailureBudget = 0
+        resumesSameTrack = false
+        isPreparing = false
+        activeDecoderID = nil
+        activeDecoderStarted = false
+        pendingSeek = nil
+        failedCrossfadeFrom = nil
+        cancelGapless()
+        cancelCrossfade()
+        engines.forEach { $0.stop() }
+        stopPositionTimer()
+    }
+
+    private func cancelGapless() {
+        gaplessTask?.cancel()
+        gaplessTask = nil
+        pendingGaplessID = nil
+        gaplessNext = nil
+    }
+
+    private func cancelCrossfade() {
+        let wasTransitioning = crossfadeNext != nil || isCrossfading
+        crossfadeTask?.cancel()
+        crossfadeTask = nil
+        crossfadeNext = nil
+        isCrossfading = false
+        if wasTransitioning {
+            inactive?.stop()
+            inactive?.snapFade(to: 1)
+            active?.snapFade(to: 1)
+        }
+    }
+
+    private func trackDidStart(_ track: Track, reportToServer: Bool = true) {
         updateNowPlaying()
         publishWidgetSnapshot()
         prefetchUpcoming()
         scheduleQueueSave()
         maybeEnqueueGaplessNext()
-        scrobbleNowPlaying(track)
+        if reportToServer { scrobbleNowPlaying(track) }
     }
 
-    private func skipBrokenTrack() {
-        guard state != .stopped else { return }
-        if queue.advance() {
-            startCurrent(at: 0)
-        } else {
-            stop()
+    private var nextGaplessItem: QueueItem? {
+        guard settings.gapless, settings.crossfadeSeconds <= 0, queue.repeatMode != .one,
+              sleepTimer != .endOfTrack, case .local = output,
+              let next = queue.nextItem, next.id != queue.currentItem?.id else { return nil }
+        return next
+    }
+
+    private func reconcileTransitions() {
+        if let planned = crossfadeNext,
+           planned.itemID != queue.nextItem?.id || queue.repeatMode == .one ||
+           sleepTimer == .endOfTrack || settings.crossfadeSeconds <= 0 {
+            cancelCrossfade()
         }
+        let next = nextGaplessItem?.id
+        if let previous = gaplessNext, previous.itemID != next {
+            // The player can already be decoding the queued item. Stop before accepting
+            // the new order so the old decoder cannot become audible.
+            if state == .playing { startCurrent(at: position, continuing: true) }
+            else { stopLocalAudio() }
+            return
+        }
+        if pendingGaplessID != nil && pendingGaplessID != next { cancelGapless() }
+        maybeEnqueueGaplessNext()
     }
 
-    /// Enqueues the next track into the same engine for gapless playback when configured.
     private func maybeEnqueueGaplessNext() {
-        guard settings.gapless, settings.crossfadeSeconds <= 0, queue.repeatMode != .one, sleepTimer != .endOfTrack,
-              let engine = active, engine.queueIsEmpty,
-              let next = queue.upNext(limit: 1).first else { return }
-        let key = next.track.libraryKey
-        guard enqueuedGaplessKey != key else { return }
-        enqueuedGaplessKey = key
-        Task { [weak self] in
+        guard state == .playing, activeDecoderStarted, let currentID = activeDecoderID,
+              let engine = active, let next = nextGaplessItem, gaplessTask == nil, gaplessNext == nil else { return }
+        let decoderID = UUID()
+        pendingGaplessID = next.id
+        gaplessTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let url = try await self.sources.playableURL(for: next.track)
-                guard self.enqueuedGaplessKey == key, self.active === engine else { return }
-                try engine.enqueueNext(track: next.track, url: url, dsdMode: self.settings.dsdMode)
+                let file = try await self.sources.acquirePlaybackFile(for: next.track)
+                guard !Task.isCancelled, self.activeDecoderID == currentID, self.active === engine,
+                      self.nextGaplessItem?.id == next.id else { return }
+                try engine.enqueueNext(track: next.track, file: file, decoderID: decoderID, dsdMode: self.settings.dsdMode)
+                self.gaplessNext = Transition(itemID: next.id, decoderID: decoderID)
             } catch {
-                self.enqueuedGaplessKey = nil
+                guard !Task.isCancelled else { return }
                 Log.audio.info("Gapless enqueue failed (falls back to normal advance): \(error.localizedDescription, privacy: .public)")
+            }
+            if !Task.isCancelled {
+                self.gaplessTask = nil
+                self.pendingGaplessID = nil
             }
         }
     }
 
     /// The current track finished naturally (render complete / renderer stopped).
     private func trackEndedNaturally() {
+        cancelCrossfade()
         finishTrackForHistory(skipped: false)
         if sleepTimer == .endOfTrack {
             sleepTimer = .off
@@ -599,7 +786,6 @@ public final class PlaybackController: ObservableObject {
             // The track already finished, so pausing would leave an idle engine running. Stop and line up
             // the next track so Play continues the queue.
             if queue.repeatMode != .one { queue.advance() }
-            enqueuedGaplessKey = nil
             position = 0
             duration = currentTrack?.duration ?? 0
             settleStopped()
@@ -615,15 +801,26 @@ public final class PlaybackController: ObservableObject {
             settleStopped()
             return
         }
-        if let key = enqueuedGaplessKey, queue.currentTrack?.libraryKey == key, case .local = output {
-            // The next decoder is already playing in the same engine: no reload needed.
-            enqueuedGaplessKey = nil
+        if let next = gaplessNext, queue.currentItem?.id == next.itemID, case .local = output {
+            cancelGapless()
+            activeDecoderID = next.decoderID
+            activeDecoderStarted = false
             let track = queue.currentTrack
             historyRecorded = false
             position = 0
             trackStartedAt = 0
             duration = track?.duration ?? 0
-            if let track { trackDidStart(track) }
+            if next.started {
+                decoderDidStart(next.decoderID)
+            } else {
+                isPreparing = true
+                startTask = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(3))
+                    guard !Task.isCancelled, let self, self.activeDecoderID == next.decoderID,
+                          !self.activeDecoderStarted else { return }
+                    self.startCurrent(at: 0)
+                }
+            }
             return
         }
         startCurrent(at: 0)
@@ -631,12 +828,11 @@ public final class PlaybackController: ObservableObject {
 
     private func settleStopped() {
         state = .stopped
-        // An idle running engine keeps rendering (ring buffer underruns) and holds the output.
-        engines.forEach { $0.stop() }
-        stopPositionTimer()
+        stopLocalAudio()
         updateNowPlaying()
         publishWidgetSnapshot()
         scheduleQueueSave()
+        prefetchUpcoming()
     }
 
     private func finishTrackForHistory(skipped: Bool) {
@@ -661,39 +857,65 @@ public final class PlaybackController: ObservableObject {
     // MARK: - Engine events & timers
 
     private func handleEngineEvent(_ event: EngineEvent, from engineIndex: Int) {
-        // Events from the inactive engine only matter while a crossfade is starting it.
-        let isActiveEngine = engineIndex == activeIndex
+        if case .configurationChange = event { applyAudioSettings(); return }
+        guard case .local = output else { return }
+        if engineIndex != activeIndex {
+            handleIncomingCrossfadeEvent(event)
+            return
+        }
         switch event {
-        case .renderingStarted:
-            if isActiveEngine, let time = active?.currentTime { position = time }
-        case .renderingComplete:
-            if isActiveEngine, !isCrossfading, case .local = output { trackEndedNaturally() }
+        case .renderingStarted(let id):
+            if gaplessNext?.decoderID == id { gaplessNext?.started = true }
+            decoderDidStart(id)
+        case .renderingComplete(let id):
+            if activeDecoderID == id { trackEndedNaturally() }
         case .endOfAudio:
-            if isActiveEngine, case .local = output, queue.repeatMode != .one {
-                // Rendering of the last decoder finished; trackEndedNaturally already advanced the queue.
-                if queue.currentTrack == nil || queue.nextItem == nil {
-                    state = .stopped
-                    engines.forEach { $0.stop() }
-                    stopPositionTimer()
-                }
+            if startID == nil, activeDecoderID != nil, !activeDecoderStarted, active?.isReady == false {
+                // A queued decoder was adopted but never rendered. Try a regular start.
+                startCurrent(at: position)
             }
         case .playbackStateChanged(let isPlaying):
-            if isActiveEngine, !isPlaying, state == .playing, !isCrossfading, case .local = output {
-                // Paused by the system (e.g. an audio session interruption on iOS).
-                state = .paused
-                updateNowPlaying()
-                publishWidgetSnapshot()
+            if !isPlaying, state == .playing, active?.isPlaying == false {
+                pause()
             }
-        case .decodingAborted(let message), .asynchronousError(let message):
-            if isActiveEngine {
-                lastError = message
-                Log.audio.error("Engine error: \(message, privacy: .public)")
+        case .decodingAborted(let id, let message):
+            if gaplessNext?.decoderID == id {
+                cancelGapless()
+            } else if activeDecoderID == id {
+                if startID == nil && !activeDecoderStarted {
+                    startCurrent(at: position)
+                } else {
+                    failStart(message)
+                }
             }
-        case .seekCompleted:
-            if isActiveEngine, let time = active?.currentTime { position = time }
+        case .asynchronousError(let message):
+            Log.audio.error("Engine error: \(message, privacy: .public)")
+        case .seekCompleted(let id, _):
+            if activeDecoderID == id, let time = active?.currentTime { position = time }
         case .configurationChange:
-            applyAudioSettings()
+            break
         }
+    }
+
+    private func decoderDidStart(_ id: UUID) {
+        guard activeDecoderID == id, !activeDecoderStarted, let track = currentTrack else { return }
+        startTask?.cancel()
+        startTask = nil
+        startID = nil
+        startFailureBudget = 0
+        activeDecoderStarted = true
+        isPreparing = false
+        if let target = pendingSeek, active?.seek(to: target) == true {
+            position = target
+        } else if let time = active?.currentTime {
+            position = time
+        }
+        pendingSeek = nil
+        if state != .paused { state = .playing }
+        startPositionTimer()
+        let reportToServer = !resumesSameTrack
+        resumesSameTrack = false
+        trackDidStart(track, reportToServer: reportToServer)
     }
 
     private func startPositionTimer() {
@@ -712,7 +934,7 @@ public final class PlaybackController: ObservableObject {
 
     private func tick() {
         guard case .local = output else { return }
-        guard let engine = active else { return }
+        guard activeDecoderStarted, let engine = active else { return }
         if let time = engine.currentTime { position = time }
         if let total = engine.totalTime, total > 0, total != duration { duration = total }
         nowPlayingTick += 1
@@ -725,45 +947,78 @@ public final class PlaybackController: ObservableObject {
 
     private func checkCrossfade() {
         let seconds = settings.crossfadeSeconds
-        guard seconds > 0, state == .playing, !isCrossfading, case .local = output,
+        guard seconds > 0, state == .playing, !isCrossfading, crossfadeNext == nil, case .local = output,
+              let outgoingID = activeDecoderID, outgoingID != failedCrossfadeFrom, let incoming = inactive,
               let track = currentTrack, duration > seconds + 1,
-              duration - position <= seconds, queue.repeatMode != .one,
-              let next = queue.upNext(limit: 1).first else { return }
+              duration - position <= seconds, queue.repeatMode != .one, sleepTimer != .endOfTrack,
+              let next = queue.nextItem, next.id != queue.currentItem?.id else { return }
         if settings.crossfadeSkipsSameAlbum, !track.album.isEmpty, track.album == next.track.album,
            track.displayAlbumArtist == next.track.displayAlbumArtist { return }
-        isCrossfading = true
-        finishTrackForHistory(skipped: false)
-        _ = queue.advance()
-        let fadeSeconds = seconds
-        let outgoing = active
-        activeIndex = 1 - activeIndex
-        let incoming = active
+        let decoderID = UUID()
+        crossfadeNext = Transition(itemID: next.id, decoderID: decoderID)
         crossfadeTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let url = try await self.sources.playableURL(for: next.track)
-                guard !Task.isCancelled, let incoming else { return }
+                let file = try await self.sources.acquirePlaybackFile(for: next.track)
+                guard !Task.isCancelled, self.crossfadeNext?.decoderID == decoderID,
+                      self.activeDecoderID == outgoingID, self.queue.nextItem?.id == next.id else { return }
+                self.applyAudioSettings(to: incoming, for: next.track)
                 incoming.snapFade(to: 0)
-                self.applyAudioSettings()
-                try incoming.play(track: next.track, url: url, dsdMode: self.settings.dsdMode)
-                incoming.fade(to: 1, rampSeconds: fadeSeconds)
-                outgoing?.fade(to: 0, rampSeconds: fadeSeconds)
-                let track = next.track
-                self.historyRecorded = false
-                self.position = 0
-                self.trackStartedAt = 0
-                self.duration = track.duration
-                self.trackDidStart(track)
-                try await Task.sleep(nanoseconds: UInt64((fadeSeconds + 0.3) * 1_000_000_000))
-                guard !Task.isCancelled else { return }
-                outgoing?.stop()
-                outgoing?.snapFade(to: 1)
-                self.isCrossfading = false
+                try incoming.play(track: next.track, file: file, decoderID: decoderID, dsdMode: self.settings.dsdMode)
+                try await Task.sleep(for: .seconds(15))
+                if self.crossfadeNext?.decoderID == decoderID { self.crossfadeFailed() }
             } catch {
-                outgoing?.snapFade(to: 1)
-                self.isCrossfading = false
+                guard !Task.isCancelled, self.crossfadeNext?.decoderID == decoderID else { return }
+                self.crossfadeFailed()
             }
         }
+    }
+
+    private func handleIncomingCrossfadeEvent(_ event: EngineEvent) {
+        guard let next = crossfadeNext else { return }
+        switch event {
+        case .renderingStarted(let id) where id == next.decoderID:
+            guard state == .playing, queue.nextItem?.id == next.itemID,
+                  let track = queue.nextItem?.track, let incoming = inactive, let outgoing = active else {
+                cancelCrossfade()
+                return
+            }
+            finishTrackForHistory(skipped: false)
+            guard queue.advance() else { cancelCrossfade(); return }
+            let seconds = max(0, min(settings.crossfadeSeconds, duration - position))
+            crossfadeTask?.cancel()
+            crossfadeNext = nil
+            isCrossfading = true
+            activeIndex = 1 - activeIndex
+            activeDecoderID = id
+            activeDecoderStarted = false
+            historyRecorded = false
+            position = 0
+            trackStartedAt = 0
+            duration = track.duration
+            if seconds > 0 {
+                incoming.fade(to: 1, rampSeconds: seconds)
+                outgoing.fade(to: 0, rampSeconds: seconds)
+            } else {
+                incoming.snapFade(to: 1)
+                outgoing.stop()
+            }
+            decoderDidStart(id)
+            crossfadeTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(seconds + 0.3))
+                guard !Task.isCancelled, let self else { return }
+                self.cancelCrossfade()
+            }
+        case .decodingAborted(let id, _) where id == next.decoderID:
+            crossfadeFailed()
+        default:
+            break
+        }
+    }
+
+    private func crossfadeFailed() {
+        failedCrossfadeFrom = activeDecoderID
+        cancelCrossfade()
     }
 
     // MARK: - Now Playing / widgets / prefetch
@@ -779,6 +1034,49 @@ public final class PlaybackController: ObservableObject {
         nowPlayingManager.onSkipForward = { [weak self] _ in self?.skipForward() }
         nowPlayingManager.onSkipBackward = { [weak self] _ in self?.skipBackward() }
         nowPlayingManager.onChangePlaybackRate = { [weak self] rate in self?.setSpeed(rate) }
+        nowPlayingManager.onSetFavorite = { [weak self] track, favorite in
+            guard let self else { return }
+            do {
+                try await self.updateFavorite(for: track, to: favorite)
+            } catch {
+                self.lastError = error.localizedDescription
+            }
+        }
+    }
+
+    @discardableResult
+    public func updateFavorite(for track: Track, to favorite: Bool? = nil) async throws -> Bool {
+        let stored = try await environment.repository.updateFavorite(for: track, to: favorite)
+        applyFavorite(stored, matching: track.libraryKey)
+        return stored.favorite
+    }
+
+    private func observeFavorite(libraryKey: String?) {
+        currentTrackObservation?.cancel()
+        guard let libraryKey else { currentTrackObservation = nil; return }
+        let repository = environment.repository
+        currentTrackObservation = Task { [weak self] in
+            do {
+                for try await track in repository.observeTrack(libraryKey: libraryKey) {
+                    guard !Task.isCancelled, let self, self.currentTrack?.libraryKey == libraryKey else { return }
+                    if let track { self.applyFavorite(track, matching: libraryKey) }
+                }
+            } catch {
+                if !Task.isCancelled { Log.audio.error("Now Playing favorite observation failed: \(error.localizedDescription)") }
+            }
+        }
+    }
+
+    private func applyFavorite(_ stored: Track, matching libraryKey: String) {
+        var updated = queue
+        guard updated.updateFavorite(from: stored, matching: libraryKey) else { return }
+        queue = updated
+        let matchesCurrent = currentTrack?.libraryKey == libraryKey || (stored.id != nil && currentTrack?.id == stored.id)
+        if matchesCurrent, state != .stopped {
+            updateNowPlaying()
+            publishWidgetSnapshot()
+        }
+        scheduleQueueSave()
     }
 
     private func updateNowPlaying() {
@@ -813,11 +1111,14 @@ public final class PlaybackController: ObservableObject {
     }
 
     private func prefetchUpcoming() {
-        let upcoming = queue.upNext(limit: 2).map(\.track)
-        sources.prefetch(upcoming)
-        var pinned = Set(upcoming.map(\.sourceURI))
-        if let current = currentTrack { pinned.insert(current.sourceURI) }
-        Task { await sources.pinCached(pinned) }
+        let upcoming = state == .stopped ? [] : queue.upNext(limit: 2).map(\.track)
+        cachePinTask?.cancel()
+        cachePinTask = Task { [weak self] in
+            guard !Task.isCancelled, let self else { return }
+            await sources.pinCached(Set(upcoming.map(\.sourceURI)))
+            guard !Task.isCancelled else { return }
+            sources.prefetch(upcoming)
+        }
     }
 
     // MARK: - Scrobbling (Subsonic-compatible sources)

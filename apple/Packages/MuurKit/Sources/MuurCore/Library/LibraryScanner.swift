@@ -87,17 +87,17 @@ final class LibraryScanEngine: Sendable {
 
     func rootURL(for folder: WatchedFolder) async throws -> URL {
         if folder.isAppDocuments {
-            try? FileManager.default.createDirectory(at: defaultFolderURL, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: defaultFolderURL, withIntermediateDirectories: true)
             return defaultFolderURL
         }
         guard let bookmark = folder.bookmark else { return URL(fileURLWithPath: folder.path, isDirectory: true) }
         let resolved = try SecurityScopeManager.shared.resolve(bookmark: bookmark)
         let url = try SecurityScopeManager.shared.startAccessing(bookmark: bookmark, key: "folder:" + folder.id)
         if resolved.isStale, let fresh = try? SecurityScopeManager.shared.makeBookmark(for: url) {
-            var updated = folder
-            updated.bookmark = fresh
-            let record = updated
-            try await database.write { db in try record.save(db) }
+            try await database.write { db in
+                try db.execute(sql: "UPDATE watched_folders SET bookmark = ? WHERE id = ? AND bookmark = ? AND enabled = 1",
+                               arguments: [fresh, folder.id, bookmark])
+            }
         }
         return url
     }
@@ -129,16 +129,22 @@ final class LibraryScanEngine: Sendable {
 
     // MARK: Enumeration
 
-    func enumerate(root: URL) -> [DirectoryListing] {
+    func enumerate(root: URL) -> (listings: [DirectoryListing], isComplete: Bool) {
         let keys: [URLResourceKey] = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]
+        guard (try? root.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return ([], false) }
+        let encounteredError = LockedValue(false)
         guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: keys,
                                                               options: [.skipsPackageDescendants],
-                                                              errorHandler: { _, _ in true }) else { return [] }
+                                                              errorHandler: { _, _ in
+            encounteredError.set(true)
+            return true
+        }) else { return ([], false) }
         var listings: [String: DirectoryListing] = [:]
         while let next = enumerator.nextObject() {
             guard let url = next as? URL else { continue }
             let name = url.lastPathComponent
             let values = try? url.resourceValues(forKeys: Set(keys))
+            if values?.isDirectory == nil { encounteredError.set(true) }
             if values?.isDirectory == true {
                 if name.hasPrefix(".") || name == "Inbox" && url.deletingLastPathComponent().path == root.path {
                     enumerator.skipDescendants()
@@ -171,7 +177,7 @@ final class LibraryScanEngine: Sendable {
             }
             listings[directory.path] = listing
         }
-        return Array(listings.values)
+        return (Array(listings.values), !encounteredError.get())
     }
 
     func folderPath(for directory: URL, root: URL, folderName: String) -> String {
@@ -204,7 +210,8 @@ final class LibraryScanEngine: Sendable {
 
     // MARK: Scanning
 
-    func scan(folder: WatchedFolder, full: Bool, progress: @escaping @Sendable (ScanProgress) -> Void) async throws -> ScanSummary {
+    func scan(folder: WatchedFolder, full: Bool, valid: LockedValue<Bool>,
+              progress: @escaping @Sendable (ScanProgress) -> Void) async throws -> ScanSummary {
         folderArtwork.set([:])
         var summary = ScanSummary(folderName: folder.name)
         progress(ScanProgress(phase: .enumerating, folderName: folder.name))
@@ -213,10 +220,15 @@ final class LibraryScanEngine: Sendable {
 
         if !folder.path.isEmpty && folder.path != root.path {
             let oldPrefix = LibraryScanEngine.directoryPrefix(URL(fileURLWithPath: folder.path, isDirectory: true))
-            try await database.write { db in try LibraryScanEngine.relocate(db, from: oldPrefix, to: rootPrefix) }
+            try await database.write { db in
+                try Self.checkScanIsCurrent(db, folderID: folder.id, valid: valid)
+                try Self.relocate(db, from: oldPrefix, to: rootPrefix)
+                try db.execute(sql: "UPDATE watched_folders SET path = ? WHERE id = ?", arguments: [root.path, folder.id])
+            }
         }
 
-        let listings = enumerate(root: root)
+        let enumeration = enumerate(root: root)
+        var isComplete = enumeration.isComplete
         let existingRows: [String: (Double?, Int64)] = try await database.read { db in
             var result: [String: (Double?, Int64)] = [:]
             let rows = try Row.fetchAll(db, sql: "SELECT libraryKey, fileModified, fileSize FROM tracks WHERE libraryKey LIKE ? ESCAPE '\\'",
@@ -230,10 +242,13 @@ final class LibraryScanEngine: Sendable {
 
         var jobs: [Job] = []
         var keep = Set<String>()
-        for listing in listings {
+        for listing in enumeration.listings {
             var covered = Set<String>()
             for cue in listing.cues where !cue.isPlaceholder {
-                guard let data = try? Data(contentsOf: cue.url) else { continue }
+                guard let data = try? Data(contentsOf: cue.url) else {
+                    isComplete = false
+                    continue
+                }
                 let sheet = CueSheet.parse(data: data)
                 for sheetFile in sheet.files {
                     guard let audio = LibraryScanEngine.matchCueAudio(sheetFile, in: listing) else { continue }
@@ -298,10 +313,13 @@ final class LibraryScanEngine: Sendable {
             }
             while let tracks = try await group.next() {
                 processed += 1
-                if tracks.isEmpty { summary.failed += 1 }
+                if tracks.isEmpty {
+                    summary.failed += 1
+                    isComplete = false
+                }
                 pending.append(contentsOf: tracks)
                 if pending.count >= 200 {
-                    try await save(pending, existing: existingRows, summary: &summary)
+                    try await save(pending, folderID: folder.id, valid: valid, existing: existingRows, summary: &summary)
                     pending.removeAll()
                 }
                 if Date().timeIntervalSince(lastReport) > 0.25 {
@@ -314,28 +332,38 @@ final class LibraryScanEngine: Sendable {
             }
         }
         progress(ScanProgress(phase: .saving, folderName: folder.name, processed: processed, total: total))
-        try await save(pending, existing: existingRows, summary: &summary)
+        try await save(pending, folderID: folder.id, valid: valid, existing: existingRows, summary: &summary)
 
         let keepSet = keep
+        let mayRemoveMissing = isComplete
         let removed = try await database.write { db -> Int in
-            try LibraryQueries.removeMissing(db, keyPrefix: rootPrefix, keep: keepSet)
+            try Self.checkScanIsCurrent(db, folderID: folder.id, valid: valid)
+            guard mayRemoveMissing else { return 0 }
+            let removed = try LibraryQueries.removeMissing(db, keyPrefix: rootPrefix, keep: keepSet)
+            try db.execute(sql: "UPDATE watched_folders SET lastScan = ?, path = ? WHERE id = ?",
+                           arguments: [Date().timeIntervalSince1970, root.path, folder.id])
+            return removed
         }
         summary.removed = removed
-
-        var updatedFolder = folder
-        updatedFolder.lastScan = Date()
-        updatedFolder.path = root.path
-        let folderRecord = updatedFolder
-        try await database.write { db in try folderRecord.save(db) }
+        if !isComplete && summary.failed == 0 { summary.failed = 1 }
         progress(ScanProgress(phase: .finished, folderName: folder.name, processed: total, total: total))
         Log.library.info("Scanned \(folder.name, privacy: .public): +\(summary.added) ~\(summary.updated) -\(summary.removed) =\(summary.unchanged)")
         return summary
     }
 
-    private func save(_ tracks: [Track], existing: [String: (Double?, Int64)], summary: inout ScanSummary) async throws {
+    private static func checkScanIsCurrent(_ db: Database, folderID: String, valid: LockedValue<Bool>) throws {
+        try Task.checkCancellation()
+        guard valid.get(), try WatchedFolder.fetchOne(db, key: folderID)?.enabled == true else {
+            throw CancellationError()
+        }
+    }
+
+    private func save(_ tracks: [Track], folderID: String, valid: LockedValue<Bool>,
+                      existing: [String: (Double?, Int64)], summary: inout ScanSummary) async throws {
         guard !tracks.isEmpty else { return }
         let batch = tracks
         try await database.write { db in
+            try Self.checkScanIsCurrent(db, folderID: folderID, valid: valid)
             for track in batch { try LibraryQueries.upsert(db, track) }
         }
         for track in tracks {
@@ -446,7 +474,10 @@ public final class LibraryScanner: ObservableObject {
     private var pendingAll = false
     private var pendingFull = false
     private var pendingFolders = Set<String>()
+    private var scanningFolder: (id: String, valid: LockedValue<Bool>)?
     private var monitors: [String: FolderMonitor] = [:]
+    private var monitoringEnabled = false
+    private var monitorTask: Task<Void, Never>?
 
     public init(database: MuurDatabase, artwork: ArtworkCache, paths: AppPaths) {
         self.repository = LibraryRepository(database: database)
@@ -494,20 +525,35 @@ public final class LibraryScanner: ObservableObject {
 
     /// Removes a watched folder and its tracks.
     public func removeFolder(_ folder: WatchedFolder) async throws {
+        invalidateScan(for: folder.id)
         monitors[folder.id]?.stop()
         monitors[folder.id] = nil
-        try await repository.deleteWatchedFolder(id: folder.id)
-        let prefix = LibraryScanEngine.directoryPrefix(URL(fileURLWithPath: folder.path, isDirectory: true))
-        try await repository.deleteTracks(uriPrefix: prefix)
+        try await repository.database.write { db in
+            guard let current = try WatchedFolder.fetchOne(db, key: folder.id) else { return }
+            let root = URL(fileURLWithPath: current.path, isDirectory: true)
+            let prefix = LibraryScanEngine.directoryPrefix(root)
+            try db.execute(sql: "DELETE FROM tracks WHERE sourceURI LIKE ? ESCAPE '\\'",
+                           arguments: [LibraryQueries.likeEscape(prefix) + "%"])
+            try db.execute(sql: "DELETE FROM watched_folders WHERE id = ?", arguments: [folder.id])
+        }
         SecurityScopeManager.shared.stopAccessing(key: "folder:" + folder.id)
+        restartMonitoringIfNeeded()
     }
 
     public func setFolderEnabled(_ folder: WatchedFolder, enabled: Bool) async throws {
-        var updated = folder
-        updated.enabled = enabled
-        try await repository.save(watchedFolder: updated)
+        invalidateScan(for: folder.id)
+        try await repository.database.write { db in
+            try db.execute(sql: "UPDATE watched_folders SET enabled = ? WHERE id = ?", arguments: [enabled, folder.id])
+        }
         if enabled { scan(folderID: folder.id) }
         restartMonitoringIfNeeded()
+    }
+
+    private func invalidateScan(for folderID: String) {
+        pendingFolders.remove(folderID)
+        if let scanningFolder, scanningFolder.id == folderID {
+            scanningFolder.valid.set(false)
+        }
     }
 
     /// Scans every enabled folder (incrementally unless `full`).
@@ -535,7 +581,9 @@ public final class LibraryScanner: ObservableObject {
 
     public func cancel() {
         pendingAll = false
+        pendingFull = false
         pendingFolders.removeAll()
+        scanningFolder?.valid.set(false)
         scanTask?.cancel()
     }
 
@@ -566,13 +614,19 @@ public final class LibraryScanner: ObservableObject {
             let folders = (try? await repository.watchedFolders()) ?? []
             for folder in folders where folder.enabled && (all || ids.contains(folder.id)) {
                 if Task.isCancelled { break }
+                let valid = LockedValue(true)
+                scanningFolder = (folder.id, valid)
+                defer { scanningFolder = nil }
                 do {
-                    let summary = try await engine.scan(folder: folder, full: full) { [weak self] update in
-                        Task { @MainActor [weak self] in self?.progress = update }
+                    let summary = try await engine.scan(folder: folder, full: full, valid: valid) { [weak self] update in
+                        Task { @MainActor [weak self] in
+                            guard valid.get() else { return }
+                            self?.progress = update
+                        }
                     }
-                    lastSummary = summary
+                    if valid.get() { lastSummary = summary }
                 } catch is CancellationError {
-                    break
+                    if Task.isCancelled { break }
                 } catch {
                     Log.library.error("Scan of \(folder.name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
                     lastError = "\(folder.name): \(error.localizedDescription)"
@@ -583,6 +637,7 @@ public final class LibraryScanner: ObservableObject {
         progress = ScanProgress(phase: .idle)
         isScanning = false
         scanTask = nil
+        if pendingAll || !pendingFolders.isEmpty { startLoopIfNeeded() }
     }
 
     // MARK: Import
@@ -627,9 +682,29 @@ public final class LibraryScanner: ObservableObject {
 
     // MARK: Delete
 
+    /// Includes every library entry that will disappear when the selected local files are deleted.
+    public func tracksAffectedByDeletion(_ tracks: [Track]) async throws -> [Track] {
+        let localURIs = Set(tracks.filter(\.isLocal).map(\.sourceURI))
+        return try await repository.database.read { db in
+            var keys = Set(tracks.map(\.libraryKey))
+            var affected = tracks
+            for uri in localURIs.sorted() {
+                for track in try LibraryQueries.tracks(db, sourceURI: uri) where keys.insert(track.libraryKey).inserted {
+                    affected.append(track)
+                }
+            }
+            return affected
+        }
+    }
+
     /// Deletes songs. Local files are removed from disk, so the next scan does not bring them back, along with
     /// every library entry that points at them (CUE sheet tracks share one file). Remote songs only leave the library.
     public func delete(_ tracks: [Track]) async throws {
+        let confirmed = Set(tracks.map(\.libraryKey))
+        let affected = try await tracksAffectedByDeletion(tracks)
+        guard affected.allSatisfy({ confirmed.contains($0.libraryKey) }) else {
+            throw MuurError.invalidData("More songs now share these files. Select Delete again to review the affected songs.")
+        }
         let fileURIs = Array(Set(tracks.filter(\.isLocal).map(\.sourceURI)))
         let ids = tracks.compactMap(\.id)
         try await Task.detached(priority: .userInitiated) {
@@ -669,27 +744,42 @@ public final class LibraryScanner: ObservableObject {
 
     /// Watches enabled folders and rescans them (debounced) when their contents change.
     public func startMonitoring() {
-        Task { await self.configureMonitors() }
+        monitoringEnabled = true
+        restartMonitoringIfNeeded()
     }
 
     public func stopMonitoring() {
+        monitoringEnabled = false
+        monitorTask?.cancel()
+        monitorTask = nil
+        removeMonitors()
+    }
+
+    private func removeMonitors() {
         for monitor in monitors.values { monitor.stop() }
         monitors.removeAll()
     }
 
     private func restartMonitoringIfNeeded() {
-        guard !monitors.isEmpty else { return }
-        startMonitoring()
+        guard monitoringEnabled else { return }
+        monitorTask?.cancel()
+        monitorTask = Task { [weak self] in await self?.configureMonitors() }
     }
 
     private func configureMonitors() async {
-        stopMonitoring()
-        guard let folders = try? await repository.watchedFolders() else { return }
+        guard !Task.isCancelled, monitoringEnabled else { return }
+        removeMonitors()
+        guard let folders = try? await repository.watchedFolders(), !Task.isCancelled else { return }
         for folder in folders where folder.enabled {
-            guard let root = try? await engine.rootURL(for: folder) else { continue }
+            let root = try? await engine.rootURL(for: folder)
+            guard !Task.isCancelled else { return }
+            guard let root else { continue }
             let folderID = folder.id
             let monitor = FolderMonitor(url: root, debounce: 3) { [weak self] in
-                Task { @MainActor [weak self] in self?.scan(folderID: folderID) }
+                Task { @MainActor [weak self] in
+                    guard let self, self.monitors[folderID] != nil else { return }
+                    self.scan(folderID: folderID)
+                }
             }
             monitor.start()
             monitors[folder.id] = monitor

@@ -250,7 +250,12 @@ extension WebBrowserSession: WKNavigationDelegate {
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         if navigationAction.shouldPerformDownload {
-            decisionHandler(.download)
+            let pathName = navigationAction.request.url?.lastPathComponent
+            let name = pathName.flatMap { $0.isEmpty ? nil : $0 }.map(PathUtils.sanitizeFileName) ?? "Download"
+            resolvePendingDownload(.cancel)
+            pendingDownload = PendingBrowserDownload(fileName: name, expectedBytes: 0, canOpenInBrowser: false) {
+                decisionHandler($0 == .download ? .download : .cancel)
+            }
             return
         }
         if let target = navigationAction.request.url, let scheme = target.scheme?.lowercased(),
@@ -439,6 +444,7 @@ struct WebBrowserView: View {
             BrowserDownloadsView(session: session)
         }
         .onAppear { syncAddress() }
+        .onDisappear { session.resolvePendingDownload(.cancel) }
         .onChange(of: session.url) { syncAddress() }
         .onChange(of: session.isShowingStartPage) { syncAddress() }
         .onChange(of: isEditingAddress) { _, editing in
@@ -466,9 +472,16 @@ struct WebBrowserView: View {
     }
 
     private func pendingMessage(_ pending: PendingBrowserDownload) -> String {
-        let kind = PathUtils.isArchive(pending.fileName) ? "The songs inside are added to your library."
-            : PathUtils.isPlaylist(pending.fileName) ? "It's added to your library as a playlist."
-            : "It's added to your library."
+        let kind: String
+        if PathUtils.isArchive(pending.fileName) {
+            kind = "The songs inside are added to your library."
+        } else if PathUtils.isPlaylist(pending.fileName) {
+            kind = "It's added to your library as a playlist."
+        } else if PathUtils.isAudio(pending.fileName) {
+            kind = "It's added to your library."
+        } else {
+            kind = "MuurMusic can import songs, playlists and ZIP files."
+        }
         guard pending.expectedBytes > 0 else { return kind }
         return ByteCountFormatter.string(fromByteCount: pending.expectedBytes, countStyle: .file) + ". " + kind
     }

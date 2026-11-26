@@ -10,6 +10,8 @@ struct RootView: View {
     #if os(iOS)
     @Environment(\.scenePhase) private var scenePhase
     @State private var returnsFromBackground = false
+    @State private var searchReturnTab: HomeTab = .home
+    @State private var searchPath = NavigationPath()
     #endif
     #if os(macOS)
     @Environment(\.openWindow) private var openWindow
@@ -64,12 +66,19 @@ struct RootView: View {
     }
 
     private func deletionMessage(_ tracks: [Track]) -> String {
-        let local = tracks.filter(\.isLocal).count
-        if local == 0 { return "The originals stay on the server. Downloaded copies are deleted." }
-        if local == tracks.count {
-            return local == 1 ? "The song file is deleted from this device." : "The song files are deleted from this device."
+        let local = tracks.filter(\.isLocal)
+        let fileCount = Set(local.map(\.sourceURI)).count
+        let remoteMessage = "The originals stay on the server. Downloaded copies are deleted."
+        guard !local.isEmpty else { return remoteMessage }
+        let message: String
+        if fileCount < local.count {
+            message = fileCount == 1
+                ? "These \(local.count) songs share one audio file. Deleting it removes all of them."
+                : "These \(local.count) songs use \(fileCount) audio files. Deleting the files removes all of those songs."
+        } else {
+            message = fileCount == 1 ? "The song file is deleted from this device." : "The song files are deleted from this device."
         }
-        return "Files on this device are deleted. Songs from servers only leave your library."
+        return local.count == tracks.count ? message : message + " " + remoteMessage
     }
 
     private var preferredScheme: ColorScheme? {
@@ -133,11 +142,18 @@ struct RootView: View {
                 }
             }
             Tab("Search", systemImage: "magnifyingglass", value: HomeTab.search, role: .search) {
-                NavigationStack {
-                    SearchView()
-                        .muurTopLevelTitle()
+                NavigationStack(path: $searchPath) {
+                    SearchView(onSearchDismissed: {
+                        if model.tab == .search, searchPath.isEmpty {
+                            model.tab = searchReturnTab
+                        }
+                    })
+                    .muurTopLevelTitle()
                 }
             }
+        }
+        .onChange(of: model.tab) { previous, selection in
+            if selection == .search { searchReturnTab = previous }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
         .tabViewBottomAccessory(isEnabled: player.currentTrack != nil) {

@@ -31,20 +31,20 @@ struct MiniPlayerContent: View {
             Button {
                 player.togglePlayPause()
             } label: {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: player.isPreparing ? "xmark" : player.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title3)
                     .contentTransition(.symbolEffect(.replace))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(player.isPreparing ? "Cancel Loading" : player.isPlaying ? "Pause" : "Play")
 
             Button {
                 player.next()
             } label: {
-                Image(systemName: "forward.fill")
+                Image(systemName: "forward.end.fill")
                     .font(.body)
-                    .frame(width: 32, height: 36)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Next track")

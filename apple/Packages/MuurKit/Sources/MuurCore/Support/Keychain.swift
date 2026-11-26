@@ -115,16 +115,24 @@ public struct SourceSecrets: Codable, Hashable, Sendable {
 /// Stores `SourceSecrets` per source id in the Keychain.
 public final class CredentialStore: @unchecked Sendable {
     public static let defaultService = "app.muur.music.sources"
-    private let keychain: Keychain
+    private let keychain: Keychain?
     private let cache = LockedValue<[UUID: SourceSecrets]>([:])
 
-    public init(service: String = CredentialStore.defaultService, accessGroup: String? = nil) {
-        self.keychain = Keychain(service: service, accessGroup: accessGroup)
+    public convenience init(service: String = CredentialStore.defaultService, accessGroup: String? = nil) {
+        self.init(keychain: Keychain(service: service, accessGroup: accessGroup))
+    }
+
+    private init(keychain: Keychain?) {
+        self.keychain = keychain
+    }
+
+    static func inMemory() -> CredentialStore {
+        CredentialStore(keychain: nil)
     }
 
     public func secrets(for sourceID: UUID) -> SourceSecrets {
         if let cached = cache.get()[sourceID] { return cached }
-        guard let data = keychain.data(account: sourceID.uuidString),
+        guard let data = keychain?.data(account: sourceID.uuidString),
               let secrets = try? JSONDecoder().decode(SourceSecrets.self, from: data) else {
             return SourceSecrets()
         }
@@ -133,8 +141,10 @@ public final class CredentialStore: @unchecked Sendable {
     }
 
     public func save(_ secrets: SourceSecrets, for sourceID: UUID) throws {
-        let data = try JSONEncoder().encode(secrets)
-        try keychain.set(data, account: sourceID.uuidString)
+        if let keychain {
+            let data = try JSONEncoder().encode(secrets)
+            try keychain.set(data, account: sourceID.uuidString)
+        }
         cache.mutate { $0[sourceID] = secrets }
     }
 
@@ -145,7 +155,7 @@ public final class CredentialStore: @unchecked Sendable {
     }
 
     public func remove(for sourceID: UUID) {
-        keychain.remove(account: sourceID.uuidString)
+        keychain?.remove(account: sourceID.uuidString)
         cache.mutate { $0[sourceID] = nil }
     }
 }

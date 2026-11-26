@@ -7,7 +7,10 @@ struct SearchView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
 
+    var onSearchDismissed: (() -> Void)? = nil
+
     @State private var query = ""
+    @State private var searchPresented = false
     @State private var results: LibrarySearchResults?
     @State private var isSearching = false
 
@@ -41,7 +44,10 @@ struct SearchView: View {
                 PlaylistDetailView(playlistID: id)
             }
         }
-        .searchable(text: $query, placement: .automatic, prompt: "Songs, albums, artists…")
+        .searchable(text: $query, isPresented: $searchPresented, placement: .automatic, prompt: "Songs, albums, artists…")
+        .onChange(of: searchPresented) { wasPresented, isPresented in
+            if wasPresented && !isPresented { onSearchDismissed?() }
+        }
         .onSubmit(of: .search) {
             model.recordSearch(query)
         }

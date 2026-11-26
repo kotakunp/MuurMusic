@@ -3,7 +3,7 @@ import Foundation
 /// LRU cache of remote audio files streamed for playback (`AppPaths.audioCacheDirectory`).
 ///
 /// Files are keyed by source URI. The size limit is read on every insert (settings may change);
-/// pinned URIs (the current and next queue items) are never evicted.
+/// pinned URIs and files leased by a decoder are never evicted to enforce that limit.
 public actor AudioCache {
     struct Entry: Codable {
         var fileName: String
@@ -16,6 +16,7 @@ public actor AudioCache {
     private var index: [String: Entry] = [:]
     private var inFlight: [String: Task<URL, Error>] = [:]
     private var pinned: Set<String> = []
+    private var leases: [String: Int] = [:]
     private var dirty = false
     private var loaded = false
 
@@ -131,6 +132,17 @@ public actor AudioCache {
     /// Protects URIs from eviction (replaces the previous set).
     public func pin(_ uris: Set<String>) {
         pinned = uris
+        trim()
+    }
+
+    func retain(_ uri: String) {
+        leases[uri, default: 0] += 1
+    }
+
+    func release(_ uri: String) {
+        guard let count = leases[uri] else { return }
+        leases[uri] = count > 1 ? count - 1 : nil
+        if count == 1 { trim() }
     }
 
     public func remove(_ uri: String) {
@@ -168,7 +180,8 @@ public actor AudioCache {
         let limit = max(0, limitBytes())
         var total = index.values.reduce(0) { $0 + $1.size }
         guard total > limit else { return }
-        for (uri, entry) in index.sorted(by: { $0.value.lastAccess < $1.value.lastAccess }) where !pinned.contains(uri) {
+        for (uri, entry) in index.sorted(by: { $0.value.lastAccess < $1.value.lastAccess })
+        where !pinned.contains(uri) && leases[uri] == nil {
             if total <= limit { break }
             try? FileManager.default.removeItem(at: directory.appendingPathComponent(entry.fileName))
             index[uri] = nil

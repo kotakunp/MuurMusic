@@ -103,7 +103,7 @@ struct TrackRowView: View {
                 Image(systemName: "ellipsis")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .frame(width: 30, height: 36)
+                    .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
             .menuStyle(.button)

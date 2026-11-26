@@ -25,6 +25,7 @@ let package = Package(
         .package(url: "https://github.com/weichsel/ZIPFoundation.git", .upToNextMinor(from: "0.9.20")),
         // Citadel already depends on these; they are listed so MuurCore can import NIOCore/Crypto directly.
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
+        .package(url: "https://github.com/Wellz26/swift-nio-ssh.git", "0.3.4" ..< "0.4.0"),
         .package(url: "https://github.com/apple/swift-crypto.git", "3.12.3" ..< "5.0.0"),
     ],
     targets: [
@@ -42,6 +43,7 @@ let package = Package(
                 .product(name: "Citadel", package: "Citadel"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
                 .product(name: "NIOCore", package: "swift-nio"),
+                .product(name: "NIOSSH", package: "swift-nio-ssh"),
                 .product(name: "Crypto", package: "swift-crypto"),
             ],
             path: "Sources/MuurCore",

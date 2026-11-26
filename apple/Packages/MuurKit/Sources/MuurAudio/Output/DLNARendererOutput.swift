@@ -44,6 +44,7 @@ public final class DLNARenderer: Sendable {
         _ = try await UPnPSOAP.call("SetAVTransportURI", service: avTransport, arguments: [
             ("InstanceID", "0"), ("CurrentURI", url.absoluteString), ("CurrentURIMetaData", didl),
         ], http: http)
+        try Task.checkCancellation()
         try await play()
     }
 

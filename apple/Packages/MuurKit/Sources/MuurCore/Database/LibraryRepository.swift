@@ -120,6 +120,10 @@ public final class LibraryRepository: Sendable {
         database.observe { db in try LibraryQueries.track(db, id: id) }
     }
 
+    public func observeTrack(libraryKey: String) -> AsyncValueObservation<Track?> {
+        database.observe { db in try LibraryQueries.track(db, libraryKey: libraryKey) }
+    }
+
     public func observeBookmarks(libraryKey: String? = nil) -> AsyncValueObservation<[Bookmark]> {
         database.observe { db in try LibraryQueries.bookmarks(db, libraryKey: libraryKey) }
     }
@@ -189,6 +193,23 @@ public final class LibraryRepository: Sendable {
         try await database.write { db in
             try db.execute(sql: "UPDATE tracks SET favorite = 1 - favorite WHERE id = ?", arguments: [trackID])
             return try Bool.fetchOne(db, sql: "SELECT favorite FROM tracks WHERE id = ?", arguments: [trackID]) ?? false
+        }
+    }
+
+    /// Saves feedback for library songs and songs played directly from a source.
+    public func updateFavorite(for track: Track, to favorite: Bool? = nil) async throws -> Track {
+        try await database.write { db in
+            let existing = try track.id.flatMap { try LibraryQueries.track(db, id: $0) }
+                ?? LibraryQueries.track(db, libraryKey: track.libraryKey)
+            var stored = existing ?? track
+            stored.favorite = favorite ?? !(existing?.favorite ?? false)
+            if let id = existing?.id {
+                try db.execute(sql: "UPDATE tracks SET favorite = ? WHERE id = ?", arguments: [stored.favorite, id])
+            } else {
+                stored.id = nil
+                if stored.favorite { return try LibraryQueries.upsert(db, stored) }
+            }
+            return stored
         }
     }
 

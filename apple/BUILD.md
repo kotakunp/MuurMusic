@@ -91,10 +91,11 @@ cd apple && xcodegen generate
 | `MUUR_BUNDLE_ID` | App bundle ID; the widgets use `$(MUUR_BUNDLE_ID).widgets`. Use your own ID for personal builds. |
 | `MUUR_APP_GROUP` | Shared app/widget container, default `group.$(MUUR_BUNDLE_ID)`. Read at runtime from Info.plist (`MuurAppGroup`). |
 | `MUUR_CARPLAY` | `YES` signs with `MuurMusic-iOS-CarPlay.entitlements`. Needs Apple's CarPlay audio approval on the profile. Default `NO`. |
-| `MUUR_PERSONAL_TEAM` | `YES` signs with `MuurMusic-iOS-Personal.entitlements` (App Group only) for free Personal Teams, which cannot sign Multicast Networking or CarPlay. SSDP discovery is then unavailable. |
+| `MUUR_PERSONAL_TEAM` | `YES` uses the local iOS entitlements for the app and widget. Live widget data, SSDP discovery, and CarPlay require their respective provisioned capabilities. |
 
-Simulator builds always use the App Group-only entitlements. The CarPlay code
-compiles either way; without the entitlement the CarPlay scene never activates.
+Simulator builds use the App Group-only entitlements. For a distribution build,
+enable the same `MUUR_APP_GROUP` on both provisioning profiles and keep
+`MUUR_PERSONAL_TEAM = NO`. The CarPlay scene requires the CarPlay entitlement.
 
 Free Personal Teams can register at most 10 App IDs per 7 days, and the app
 plus widgets need two. If you hit the limit, build without the widget extension

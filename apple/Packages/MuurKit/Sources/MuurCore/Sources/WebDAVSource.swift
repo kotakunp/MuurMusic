@@ -81,7 +81,9 @@ public enum WebDAVPreset: String, Codable, CaseIterable, Sendable, Identifiable 
         config.options[SourceConfig.OptionKey.webdavPreset] = rawValue
         if let host = fixedHost { config.host = host }
         if config.port == nil { config.port = defaultPort }
-        config.options[SourceConfig.OptionKey.useTLS] = defaultUsesTLS ? "true" : (config.options[SourceConfig.OptionKey.useTLS] ?? "false")
+        if fixedHost != nil || config.options[SourceConfig.OptionKey.useTLS] == nil {
+            config.options[SourceConfig.OptionKey.useTLS] = defaultUsesTLS ? "true" : "false"
+        }
         let user = PathUtils.rfc3986Encode(config.username)
         if config.basePath.isEmpty || config.basePath == "/" {
             config.basePath = pathTemplate.replacingOccurrences(of: "{user}", with: user)
@@ -121,7 +123,17 @@ public final class WebDAVSource: MusicSource {
             components.scheme = config.useTLS ? "https" : "http"
             components.host = host
         }
-        if let port = config.port { components.port = port }
+        let scheme = components.scheme?.lowercased()
+        guard scheme == "http" || scheme == "https" else {
+            throw MuurError.invalidData("Enter an HTTP or HTTPS WebDAV address.")
+        }
+        if config.useTLS && scheme != "https" {
+            throw MuurError.invalidData("Use an HTTPS address when TLS is enabled.")
+        }
+        if let port = config.port {
+            guard (1...65535).contains(port) else { throw MuurError.invalidData("Enter a WebDAV port from 1 to 65535.") }
+            components.port = port
+        }
         var basePath = components.path.isEmpty || components.path == "/" ? config.basePath : components.path
         if basePath.isEmpty { basePath = "/" }
         if !basePath.hasPrefix("/") { basePath = "/" + basePath }
@@ -130,7 +142,7 @@ public final class WebDAVSource: MusicSource {
         components.query = nil
         guard let url = components.url else { throw MuurError.invalidData("Invalid WebDAV URL") }
         baseURL = url
-        scheme = url.scheme == "https" ? "webdavs" : "webdav"
+        self.scheme = scheme == "https" ? "webdavs" : "webdav"
         password = secrets.password ?? ""
         let credential = config.username.isEmpty ? nil : URLCredential(user: config.username, password: password, persistence: .forSession)
         http = HTTPClient(allowInsecureTLS: config.allowInsecureTLS, credential: credential)

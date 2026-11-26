@@ -5,6 +5,7 @@ import MuurAudio
 /// Full Now Playing screen. Artwork-tinted backdrop, large artwork that settles back while
 /// paused, and transport controls that stay put while Lyrics or Up Next take the top half.
 struct NowPlayingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var player: PlaybackController
     @Environment(\.dismiss) private var dismiss
@@ -171,10 +172,12 @@ struct NowPlayingView: View {
             } label: {
                 Image(systemName: track.favorite ? "heart.fill" : "heart")
                     .contentTransition(.symbolEffect(.replace))
-                    .modifier(CircleIconStyle())
+                    .symbolEffect(.bounce, value: track.favorite && !reduceMotion)
+                    .modifier(CircleIconStyle(color: track.favorite ? .pink : .primary))
             }
             .buttonStyle(.plain)
             .accessibilityLabel(track.favorite ? "Remove from Liked Songs" : "Add to Liked Songs")
+            .accessibilityValue(track.favorite ? "Liked" : "Unliked")
         }
         moreMenu
     }
@@ -222,7 +225,7 @@ struct NowPlayingView: View {
             Button {
                 player.previous()
             } label: {
-                Image(systemName: "backward.fill")
+                Image(systemName: "backward.end.fill")
                     .font(.system(size: 30))
                     .frame(width: 60, height: 60)
                     .contentShape(Rectangle())
@@ -232,18 +235,18 @@ struct NowPlayingView: View {
             Button {
                 player.togglePlayPause()
             } label: {
-                Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: player.isPreparing ? "xmark" : player.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 46))
                     .contentTransition(.symbolEffect(.replace))
                     .frame(width: 72, height: 72)
                     .contentShape(Rectangle())
             }
-            .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
+            .accessibilityLabel(player.isPreparing ? "Cancel Loading" : player.isPlaying ? "Pause" : "Play")
             Spacer()
             Button {
                 player.next()
             } label: {
-                Image(systemName: "forward.fill")
+                Image(systemName: "forward.end.fill")
                     .font(.system(size: 30))
                     .frame(width: 60, height: 60)
                     .contentShape(Rectangle())
@@ -372,6 +375,7 @@ struct NowPlayingView: View {
                     .pickerStyle(.menu)
                 }
             }
+            #if os(macOS)
             Section {
                 Button {
                     player.skipBackward()
@@ -384,6 +388,7 @@ struct NowPlayingView: View {
                     Label("Forward \(Int(model.settings.skipForwardInterval)) Seconds", systemImage: "goforward.\(Int(model.settings.skipForwardInterval))")
                 }
             }
+            #endif
             Section {
                 Picker(selection: speedBinding) {
                     ForEach(Self.speeds, id: \.self) { speed in
@@ -469,13 +474,16 @@ struct NowPlayingView: View {
 
 /// Round translucent backing for the heart and ellipsis buttons.
 private struct CircleIconStyle: ViewModifier {
+    var color: Color = .primary
+
     func body(content: Content) -> some View {
         content
             .font(.body.weight(.semibold))
-            .foregroundStyle(.primary)
+            .foregroundStyle(color)
             .frame(width: 34, height: 34)
             .background(.white.opacity(0.14), in: Circle())
-            .contentShape(Circle())
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
     }
 }
 

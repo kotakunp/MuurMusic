@@ -111,7 +111,7 @@ public struct SourceConfig: Codable, Hashable, Identifiable, Sendable {
     public enum OptionKey {
         /// "true" to use TLS (WebDAV https, FTPS, media servers over https).
         public static let useTLS = "useTLS"
-        /// FTP: "explicit" (AUTH TLS) or "implicit".
+        /// FTP: "off", "explicit" (AUTH TLS), or "implicit".
         public static let ftpTLSMode = "ftpTLSMode"
         /// "true" to accept self-signed certificates.
         public static let allowInsecureTLS = "allowInsecureTLS"
@@ -136,6 +136,7 @@ public struct SourceConfig: Codable, Hashable, Identifiable, Sendable {
         public static let accountName = "accountName"
         /// SFTP auth: "password" or "key".
         public static let sftpAuth = "sftpAuth"
+        public static let sftpHostFingerprint = "sftpHostFingerprint"
         /// Subsonic: "true" to use legacy plain password auth instead of token+salt.
         public static let subsonicLegacyAuth = "subsonicLegacyAuth"
     }
@@ -161,7 +162,8 @@ public struct SourceConfig: Codable, Hashable, Identifiable, Sendable {
     }
 
     public func flag(_ key: String) -> Bool {
-        options[key] == "true"
+        let value = options[key]
+        return value == "true" || value == "1"
     }
 
     public var useTLS: Bool { flag(OptionKey.useTLS) }

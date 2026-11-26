@@ -31,4 +31,21 @@ final class PlaybackQueueTests: XCTestCase {
         XCTAssertEqual(queue.currentItem?.id, list[2].id)
         XCTAssertEqual(queue.nextItem?.id, list[3].id)
     }
+
+    func testFavoriteUpdatesDuplicateEntriesWithoutMovingPlayback() {
+        var track = items(1)[0].track
+        let other = items(2)[1]
+        let list = [QueueItem(track: track), other, QueueItem(track: track)]
+        var queue = PlaybackQueue(items: list, startIndex: 2, shuffleMode: .on)
+        let order = queue.order
+        track.id = 42
+        track.favorite = true
+
+        XCTAssertTrue(queue.updateFavorite(from: track, matching: track.libraryKey))
+        XCTAssertEqual(queue.items.map(\.track.favorite), [true, false, true])
+        XCTAssertEqual(queue.currentTrack?.id, 42)
+        XCTAssertEqual(queue.currentItem?.id, list[2].id)
+        XCTAssertEqual(queue.order, order)
+        XCTAssertFalse(queue.updateFavorite(from: track, matching: track.libraryKey))
+    }
 }

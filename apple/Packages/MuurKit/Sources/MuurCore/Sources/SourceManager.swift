@@ -1,6 +1,19 @@
 import Foundation
 import GRDB
 
+/// Keeps a cached file available while a local decoder or cast session uses it.
+public final class PlaybackFileLease: Sendable {
+    public let url: URL
+    private let release: @Sendable () -> Void
+
+    fileprivate init(url: URL, release: @escaping @Sendable () -> Void) {
+        self.url = url
+        self.release = release
+    }
+
+    deinit { release() }
+}
+
 /// Creates, caches and resolves configured sources, and turns any track URI into a playable local file.
 ///
 /// - Source instances are created lazily per configuration and reused until the configuration changes.
@@ -92,11 +105,13 @@ public final class SourceManager: @unchecked Sendable {
     }
 
     /// Verifies a configuration before saving it: connects and lists the root. Returns the root items.
-    /// Secrets are stored under `config.id` first because some sources persist tokens while connecting.
+    /// The probe uses an isolated store because some sources save tokens during connection.
     @discardableResult
-    public func test(_ config: SourceConfig, secrets: SourceSecrets) async throws -> [SourceItem] {
-        try credentials.save(secrets, for: config.id)
-        let probe = try SourceManager.makeSource(config: config, secrets: secrets, credentials: credentials, paths: paths)
+    public func test(_ config: SourceConfig, secrets: SourceSecrets? = nil) async throws -> [SourceItem] {
+        let candidate = secrets ?? credentials.secrets(for: config.id)
+        let temporaryCredentials = CredentialStore.inMemory()
+        try temporaryCredentials.save(candidate, for: config.id)
+        let probe = try SourceManager.makeSource(config: config, secrets: candidate, credentials: temporaryCredentials, paths: paths)
         do {
             try await probe.connect()
             let items = try await probe.list(nil)
@@ -227,6 +242,22 @@ public final class SourceManager: @unchecked Sendable {
 
     // MARK: Playback files
 
+    public func acquirePlaybackFile(for track: Track) async throws -> PlaybackFileLease {
+        try Task.checkCancellation()
+        let uri = track.sourceURI
+        await cache.retain(uri)
+        do {
+            let url = try await playableURL(for: track)
+            try Task.checkCancellation()
+            return PlaybackFileLease(url: url) { [cache] in
+                Task { await cache.release(uri) }
+            }
+        } catch {
+            await cache.release(uri)
+            throw error
+        }
+    }
+
     /// A local file URL for a track (CUE tracks resolve to the shared audio file).
     public func playableURL(for track: Track, progress: (@Sendable (Int64, Int64) -> Void)? = nil) async throws -> URL {
         try await playableURL(forURI: track.sourceURI, sourceID: track.sourceID, fileName: track.fileName, progress: progress)
@@ -334,7 +365,13 @@ public final class SourceManager: @unchecked Sendable {
     public func prefetch(_ tracks: [Track]) {
         let settings = MuurSettings.Snapshot.current(defaults: defaults)
         let remote = tracks.filter { !$0.isLocal }
-        guard settings.prefetchNext, !settings.offlineMode, !remote.isEmpty else { return }
+        guard settings.prefetchNext, !settings.offlineMode, !remote.isEmpty else {
+            prefetchTask.mutate { current in
+                current?.cancel()
+                current = nil
+            }
+            return
+        }
         let task = Task.detached(priority: .utility) { [weak self] in
             for track in remote {
                 if Task.isCancelled { return }

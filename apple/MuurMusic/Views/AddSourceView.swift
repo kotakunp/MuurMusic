@@ -18,8 +18,8 @@ struct AddSourceView: View {
         self.editing = editing
         let initialKind = editing?.kind ?? kind ?? .smb
         _kind = State(initialValue: initialKind)
-        if editing == nil, let port = initialKind.defaultPort {
-            _portText = State(initialValue: String(port))
+        if let preset = editing?.option(SourceConfig.OptionKey.webdavPreset).flatMap(WebDAVPreset.init(rawValue:)) {
+            _webdavPreset = State(initialValue: preset)
         }
     }
 
@@ -39,6 +39,7 @@ struct AddSourceView: View {
     @State private var smbDomain = ""
     @State private var ftpTLSMode = "explicit"
     @State private var sftpAuth = "password"
+    @State private var sftpHostFingerprint = ""
     @State private var privateKey = ""
     @State private var privateKeyPassphrase = ""
     @State private var s3Region = ""
@@ -52,12 +53,20 @@ struct AddSourceView: View {
     @State private var isPickingFolder = false
 
     // Flow state
+    @State private var draft = SourceConfig(kind: .smb, name: "")
     @State private var isTesting = false
+    @State private var testFeedback: TestFeedback?
     @State private var isSaving = false
     @State private var isSigningIn = false
     @State private var plexPIN: PlexPIN?
     @State private var plexServers: [PlexServer]?
     @State private var plexToken = ""
+
+    private struct TestFeedback {
+        let configuration: SourceConfig
+        let secrets: SourceSecrets?
+        let message: MuurToast
+    }
 
     var body: some View {
         NavigationStack {
@@ -78,6 +87,7 @@ struct AddSourceView: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollDismissesKeyboard(.immediately)
             .navigationTitle(editing == nil ? "Add Source" : "Edit Source")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -119,7 +129,7 @@ struct AddSourceView: View {
             .labelsHidden()
             .onChange(of: kind) { _, newKind in
                 if name.isEmpty { name = newKind.displayName }
-                if portText.isEmpty, let port = newKind.defaultPort { portText = String(port) }
+                portText = ""
             }
         }
     }
@@ -275,10 +285,15 @@ struct AddSourceView: View {
             }
 
             if kind != .upnp, showsPort {
-                TextField("Port (default \(kind.defaultPort.map(String.init) ?? "443"))", text: $portText)
+                TextField("Port (default \(defaultPort))", text: $portText)
                     #if os(iOS)
                     .keyboardType(.numberPad)
                     #endif
+                if !validPort {
+                    Text("Enter a port from 1 to 65535.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
             if showsPath {
                 TextField(kind == .s3 ? "Bucket / Path" : "Path (optional)", text: $basePath)
@@ -301,7 +316,15 @@ struct AddSourceView: View {
                     Text(isTesting ? "Testing…" : "Test Connection")
                 }
             }
-            .disabled(isTesting)
+            .disabled(!canSave || isTesting)
+            if let feedback = testFeedback, feedback.configuration == makeConfig(), feedback.secrets == makeSecrets() {
+                Label(feedback.message.message, systemImage: feedback.message.systemImage)
+                    .font(.subheadline)
+                    .foregroundStyle(feedback.message.isError ? MuurTheme.danger : .secondary)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(feedback.message.message)
+                    .accessibilityIdentifier("connectionTestResult")
+            }
         }
     }
 
@@ -384,10 +407,22 @@ struct AddSourceView: View {
                     .autocorrectionDisabled()
                     #endif
             }
-        case .webdav, .sftp:
+        case .webdav:
             Section("Options") {
-                Toggle("Use TLS (HTTPS/SSH)", isOn: $useTLS)
+                Toggle("Use TLS (HTTPS)", isOn: $useTLS)
+                    .disabled(webdavPreset.fixedHost != nil)
                 Toggle("Allow self-signed certificates", isOn: $allowInsecureTLS)
+            }
+        case .sftp:
+            Section("Server Identity") {
+                TextField("SHA256 host fingerprint", text: $sftpHostFingerprint)
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    #endif
+                Text("Enter the SHA256 fingerprint provided by your server administrator.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         case .ftp:
             Section("Options") {
@@ -430,6 +465,21 @@ struct AddSourceView: View {
         }
     }
 
+    private var defaultPort: Int {
+        switch kind {
+        case .ftp: return ftpTLSMode == "implicit" ? 990 : 21
+        case .webdav: return webdavPreset.defaultPort ?? (useTLS ? 443 : 80)
+        case .jellyfin, .emby, .subsonic:
+            return useTLS ? 443 : (kind.defaultPort ?? 80)
+        default: return kind.defaultPort ?? 443
+        }
+    }
+
+    private var validPort: Bool {
+        let text = portText.trimmingCharacters(in: .whitespaces)
+        return text.isEmpty || Int(text).map { (1...65535).contains($0) } == true
+    }
+
     private var showsPath: Bool {
         switch kind {
         case .webdav, .smb, .ftp, .sftp, .s3: return true
@@ -447,6 +497,7 @@ struct AddSourceView: View {
     }
 
     private var canSave: Bool {
+        guard !showsPort || validPort else { return false }
         switch kind {
         case .local, .iCloud:
             return !localFolderPath.isEmpty
@@ -454,6 +505,8 @@ struct AddSourceView: View {
             return !upnpDescriptionURL.isEmpty
         case .webdav:
             return webdavPreset.fixedHost != nil || !host.isEmpty
+        case .sftp:
+            return !host.isEmpty && !username.isEmpty && SFTPSource.isValidHostFingerprint(sftpHostFingerprint)
         default:
             return !host.isEmpty
         }
@@ -476,11 +529,11 @@ struct AddSourceView: View {
     }
 
     private func makeConfig() -> SourceConfig {
-        var config = editing ?? SourceConfig(kind: kind, name: name)
+        var config = editing ?? draft
         config.kind = kind
         config.name = name.trimmingCharacters(in: .whitespaces).isEmpty ? kind.displayName : name.trimmingCharacters(in: .whitespaces)
         config.host = host.trimmingCharacters(in: .whitespaces)
-        config.port = Int(portText) ?? kind.defaultPort
+        config.port = Int(portText.trimmingCharacters(in: .whitespaces))
         config.username = username.trimmingCharacters(in: .whitespaces)
         var options = config.options
 
@@ -496,8 +549,8 @@ struct AddSourceView: View {
             options[SourceConfig.OptionKey.upnpDescriptionURL] = upnpDescriptionURL.trimmingCharacters(in: .whitespaces)
         case .webdav:
             options[SourceConfig.OptionKey.webdavPreset] = webdavPreset.rawValue
-            options[SourceConfig.OptionKey.useTLS] = useTLS ? "1" : "0"
-            options[SourceConfig.OptionKey.allowInsecureTLS] = allowInsecureTLS ? "1" : "0"
+            options[SourceConfig.OptionKey.useTLS] = String(useTLS)
+            options[SourceConfig.OptionKey.allowInsecureTLS] = String(allowInsecureTLS)
             if webdavPreset.fixedHost != nil {
                 config.host = webdavPreset.fixedHost ?? config.host
             }
@@ -508,28 +561,31 @@ struct AddSourceView: View {
             config.basePath = basePath
         case .ftp:
             options[SourceConfig.OptionKey.ftpTLSMode] = ftpTLSMode
-            options[SourceConfig.OptionKey.allowInsecureTLS] = allowInsecureTLS ? "1" : "0"
+            options[SourceConfig.OptionKey.useTLS] = String(ftpTLSMode != "off")
+            options[SourceConfig.OptionKey.allowInsecureTLS] = String(allowInsecureTLS)
             config.basePath = basePath
         case .sftp:
-            options[SourceConfig.OptionKey.useTLS] = "1"
-            options[SourceConfig.OptionKey.allowInsecureTLS] = allowInsecureTLS ? "1" : "0"
+            options[SourceConfig.OptionKey.useTLS] = "true"
+            options.removeValue(forKey: SourceConfig.OptionKey.allowInsecureTLS)
             options[SourceConfig.OptionKey.sftpAuth] = sftpAuth
+            options[SourceConfig.OptionKey.sftpHostFingerprint] = sftpHostFingerprint.trimmingCharacters(in: .whitespacesAndNewlines)
             config.basePath = basePath
         case .s3:
             options[SourceConfig.OptionKey.s3Region] = s3Region
             options[SourceConfig.OptionKey.s3PathStyle] = s3PathStyle ? "1" : "0"
             config.basePath = basePath
         case .subsonic:
-            options[SourceConfig.OptionKey.useTLS] = useTLS ? "1" : "0"
-            options[SourceConfig.OptionKey.subsonicLegacyAuth] = subsonicLegacy ? "1" : "0"
+            options[SourceConfig.OptionKey.useTLS] = String(useTLS)
+            options[SourceConfig.OptionKey.subsonicLegacyAuth] = String(subsonicLegacy)
             config.basePath = ""
         case .jellyfin, .emby:
-            options[SourceConfig.OptionKey.useTLS] = useTLS ? "1" : "0"
+            options[SourceConfig.OptionKey.useTLS] = String(useTLS)
             config.basePath = ""
         case .dropbox, .googleDrive, .oneDrive, .box, .pCloud, .plex:
             break
         }
         config.options = options
+        if kind == .webdav { webdavPreset.apply(to: &config) }
         return config
     }
 
@@ -553,11 +609,7 @@ struct AddSourceView: View {
     }
 
     private func save() {
-        var config = makeConfig()
-        if kind == .webdav {
-            webdavPreset.apply(to: &config)
-            if !host.isEmpty && webdavPreset.fixedHost == nil { config.host = host.trimmingCharacters(in: .whitespaces) }
-        }
+        let config = makeConfig()
         let secrets = makeSecrets()
         isSaving = true
         Task {
@@ -577,15 +629,19 @@ struct AddSourceView: View {
 
     private func testConnection() {
         let config = makeConfig()
-        let secrets = makeSecrets() ?? SourceSecrets()
+        let secrets = makeSecrets()
         isTesting = true
+        testFeedback = nil
         Task {
+            let message: MuurToast
             do {
                 let items = try await model.environment.sources.test(config, secrets: secrets)
-                model.showToast(.success("Connected — found \(items.count) items", systemImage: "checkmark.circle.fill"))
+                let count = items.count == 1 ? "1 item" : "\(items.count) items"
+                message = .success("Connected. Found \(count).")
             } catch {
-                model.showError(error)
+                message = .error(error)
             }
+            testFeedback = TestFeedback(configuration: config, secrets: secrets, message: message)
             isTesting = false
         }
     }
@@ -665,12 +721,13 @@ struct AddSourceView: View {
         allowInsecureTLS = config.allowInsecureTLS
         smbShare = config.option(SourceConfig.OptionKey.smbShare) ?? ""
         smbDomain = config.option(SourceConfig.OptionKey.smbDomain) ?? ""
-        ftpTLSMode = config.option(SourceConfig.OptionKey.ftpTLSMode) ?? "explicit"
+        let savedFTPMode = config.option(SourceConfig.OptionKey.ftpTLSMode) ?? (config.useTLS ? "explicit" : "off")
+        ftpTLSMode = savedFTPMode == "none" ? "off" : savedFTPMode
         sftpAuth = config.option(SourceConfig.OptionKey.sftpAuth) ?? "password"
+        sftpHostFingerprint = config.option(SourceConfig.OptionKey.sftpHostFingerprint) ?? ""
         s3Region = config.option(SourceConfig.OptionKey.s3Region) ?? ""
         s3PathStyle = config.option(SourceConfig.OptionKey.s3PathStyle) != "0"
         subsonicLegacy = config.flag(SourceConfig.OptionKey.subsonicLegacyAuth)
-        webdavPreset = WebDAVPreset(rawValue: config.option(SourceConfig.OptionKey.webdavPreset) ?? "") ?? .generic
         upnpDescriptionURL = config.option(SourceConfig.OptionKey.upnpDescriptionURL) ?? ""
         if kind == .local || kind == .iCloud {
             localFolderPath = config.basePath

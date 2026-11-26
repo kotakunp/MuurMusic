@@ -2,6 +2,21 @@ import Foundation
 import Citadel
 import Crypto
 import NIOCore
+import NIOSSH
+
+private struct SFTPHostKeyValidator: NIOSSHClientServerAuthenticationDelegate, Sendable {
+    let fingerprint: Data
+
+    func validateHostKey(hostKey: NIOSSHPublicKey, validationCompletePromise: EventLoopPromise<Void>) {
+        let fields = String(openSSHPublicKey: hostKey).split(separator: " ")
+        if fields.count >= 2, let key = Data(base64Encoded: String(fields[1])),
+           Data(SHA256.hash(data: key)) == fingerprint {
+            validationCompletePromise.succeed(())
+        } else {
+            validationCompletePromise.fail(MuurError.authenticationFailed("The SFTP server host key does not match the saved fingerprint."))
+        }
+    }
+}
 
 /// SFTP servers through Citadel (SwiftNIO SSH).
 ///
@@ -10,8 +25,7 @@ import NIOCore
 /// option `sftpAuth` = "key" forces key authentication. `config.basePath` = start folder (empty = home).
 /// URIs: `sftp://host[:port]/absolute/path`.
 ///
-/// Host keys are accepted without verification (Citadel offers no known-hosts store); use SFTP on
-/// trusted networks or behind a VPN.
+/// Host keys are checked against the server's SHA256 fingerprint before authentication.
 public final class SFTPSource: MusicSource {
     public let config: SourceConfig
     public var capabilities: SourceCapabilities { SourceCapabilities.fileServer }
@@ -20,13 +34,15 @@ public final class SFTPSource: MusicSource {
     actor Session {
         private let config: SourceConfig
         private let secrets: SourceSecrets
+        private let fingerprint: Data
         private var client: SSHClient?
         private var sftp: SFTPClient?
         private(set) var homePath: String?
 
-        init(config: SourceConfig, secrets: SourceSecrets) {
+        init(config: SourceConfig, secrets: SourceSecrets, fingerprint: Data) {
             self.config = config
             self.secrets = secrets
+            self.fingerprint = fingerprint
         }
 
         private func authentication() throws -> SSHAuthenticationMethod {
@@ -55,7 +71,8 @@ public final class SFTPSource: MusicSource {
             do {
                 let ssh = try await SSHClient.connect(host: config.host, port: config.port ?? 22,
                                                       authenticationMethod: try authentication(),
-                                                      hostKeyValidator: .acceptAnything(), reconnect: .never)
+                                                      hostKeyValidator: .custom(SFTPHostKeyValidator(fingerprint: fingerprint)),
+                                                      reconnect: .never)
                 let opened = try await ssh.openSFTP()
                 client = ssh
                 sftp = opened
@@ -85,8 +102,24 @@ public final class SFTPSource: MusicSource {
     public init(config: SourceConfig, secrets: SourceSecrets) throws {
         guard !config.host.isEmpty else { throw MuurError.notConfigured("SFTP server address") }
         guard !config.username.isEmpty else { throw MuurError.notConfigured("SFTP user name") }
+        guard let fingerprint = Self.fingerprintData(config.option(SourceConfig.OptionKey.sftpHostFingerprint) ?? "") else {
+            throw MuurError.invalidData("Edit this source and enter the SHA256 host fingerprint from your SFTP server administrator.")
+        }
         self.config = config
-        session = Session(config: config, secrets: secrets)
+        session = Session(config: config, secrets: secrets, fingerprint: fingerprint)
+    }
+
+    public static func isValidHostFingerprint(_ value: String) -> Bool {
+        fingerprintData(value) != nil
+    }
+
+    private static func fingerprintData(_ value: String) -> Data? {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard text.hasPrefix("SHA256:") else { return nil }
+        let encoded = String(text.dropFirst("SHA256:".count))
+        let padded = encoded.count == 43 ? encoded + "=" : encoded
+        guard let digest = Data(base64Encoded: padded), digest.count == 32 else { return nil }
+        return digest
     }
 
     private func rootPath() async throws -> String {

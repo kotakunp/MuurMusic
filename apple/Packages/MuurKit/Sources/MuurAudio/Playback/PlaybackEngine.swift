@@ -1,19 +1,20 @@
 import AVFAudio
 import Foundation
 import MuurCore
+import ObjectiveC
 import SFBAudioEngine
 
 /// Events from one playback engine, forwarded from the SFBAudioEngine delegate (unspecified thread).
 public enum EngineEvent: Sendable {
-    case renderingStarted
+    case renderingStarted(decoderID: UUID)
     /// The current decoder rendered its final frame (natural track end).
-    case renderingComplete
+    case renderingComplete(decoderID: UUID)
     case playbackStateChanged(isPlaying: Bool)
     /// The player's decoder queue ran dry.
     case endOfAudio
-    case decodingAborted(message: String)
+    case decodingAborted(decoderID: UUID, message: String)
     case asynchronousError(message: String)
-    case seekCompleted(frame: Int64)
+    case seekCompleted(decoderID: UUID, frame: Int64)
     case configurationChange
 }
 
@@ -32,9 +33,19 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
     private(set) var dspNode: DSPAudioNode!
     let tapBuffer: AudioTapBuffer
     let onEvent: @Sendable (EngineEvent) -> Void
-    /// The track currently loaded (set by the controller; used to map delegate callbacks).
-    let loadedTrackID = LockedValue<String?>(nil)
     private var graphInstalled = false
+
+    private final class DecoderContext {
+        let id: UUID
+        let file: PlaybackFileLease
+
+        init(id: UUID, file: PlaybackFileLease) {
+            self.id = id
+            self.file = file
+        }
+    }
+
+    private nonisolated(unsafe) static var decoderContextKey: UInt8 = 0
 
     /// ISO band frequencies of the 10-band EQ.
     public static let eqFrequencies: [Float] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16_000]
@@ -122,23 +133,30 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
 
     // MARK: Transport
 
-    func play(track: Track, url: URL, dsdMode: DSDPlaybackMode, at position: Double = 0) throws {
-        let decoder = try PlaybackEngine.makeDecoder(for: track, url: url, dsdMode: dsdMode)
-        loadedTrackID.set(track.libraryKey)
+    func play(track: Track, file: PlaybackFileLease, decoderID: UUID, dsdMode: DSDPlaybackMode) throws {
+        let decoder = try makeDecoder(for: track, file: file, decoderID: decoderID, dsdMode: dsdMode)
         _ = try player.play(decoder)
-        if position > 0.5, player.supportsSeeking {
-            _ = player.seek(time: position)
-        }
     }
 
     /// Enqueues a decoder for gapless playback (same engine, no fade).
-    func enqueueNext(track: Track, url: URL, dsdMode: DSDPlaybackMode) throws {
-        let decoder = try PlaybackEngine.makeDecoder(for: track, url: url, dsdMode: dsdMode)
+    func enqueueNext(track: Track, file: PlaybackFileLease, decoderID: UUID, dsdMode: DSDPlaybackMode) throws {
+        let decoder = try makeDecoder(for: track, file: file, decoderID: decoderID, dsdMode: dsdMode)
         _ = try player.enqueue(decoder)
     }
 
-    /// True when a decoder for the next track is already queued.
-    var queueIsEmpty: Bool { player.queueIsEmpty }
+    private func makeDecoder(for track: Track, file: PlaybackFileLease, decoderID: UUID,
+                             dsdMode: DSDPlaybackMode) throws -> any PCMDecoding {
+        let decoder = try Self.makeDecoder(for: track, url: file.url, dsdMode: dsdMode)
+        // The player takes ownership of the decoder. Keep the file leased for that same lifetime.
+        objc_setAssociatedObject(decoder, &Self.decoderContextKey, DecoderContext(id: decoderID, file: file), .OBJC_ASSOCIATION_RETAIN)
+        return decoder
+    }
+
+    private func decoderID(_ decoder: any PCMDecoding) -> UUID? {
+        (objc_getAssociatedObject(decoder, &Self.decoderContextKey) as? DecoderContext)?.id
+    }
+
+    var isReady: Bool { player.isReady }
 
     func play() throws { _ = try player.play() }
     func pause() { _ = player.pause() }
@@ -199,11 +217,11 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
     // MARK: AudioPlayer.Delegate (unspecified thread)
 
     func audioPlayer(_ audioPlayer: AudioPlayer, renderingStarted decoder: any PCMDecoding) {
-        onEvent(.renderingStarted)
+        if let id = decoderID(decoder) { onEvent(.renderingStarted(decoderID: id)) }
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, renderingComplete decoder: any PCMDecoding) {
-        onEvent(.renderingComplete)
+        if let id = decoderID(decoder) { onEvent(.renderingComplete(decoderID: id)) }
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, playbackStateChanged playbackState: AudioPlayer.PlaybackState) {
@@ -215,7 +233,7 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, decodingAborted decoder: any PCMDecoding, error: any Error, framesRendered: AVAudioFramePosition) {
-        onEvent(.decodingAborted(message: error.localizedDescription))
+        if let id = decoderID(decoder) { onEvent(.decodingAborted(decoderID: id, message: error.localizedDescription)) }
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, encounteredError error: any Error) {
@@ -223,7 +241,7 @@ final class PlaybackEngine: NSObject, AudioPlayer.Delegate, @unchecked Sendable 
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, didSeek decoder: any PCMDecoding, toFrame frame: AVAudioFramePosition) {
-        onEvent(.seekCompleted(frame: frame))
+        if let id = decoderID(decoder) { onEvent(.seekCompleted(decoderID: id, frame: frame)) }
     }
 
     func audioPlayer(_ audioPlayer: AudioPlayer, audioEngineConfigurationChange userInfo: [AnyHashable: Any]?) {

@@ -89,7 +89,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": $(MUUR_IOS_ENTITLEMENTS)
         # Simulator builds need the App Group too (shared widget storage).
-        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": MuurMusic/MuurMusic-iOS-Personal.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": MuurMusic/MuurMusic-iOS-Simulator.entitlements
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": MuurMusic/MuurMusic-macOS.entitlements
         "ENABLE_HARDENED_RUNTIME[sdk=macosx*]": YES
         "LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) @executable_path/Frameworks"
@@ -125,6 +125,8 @@ targets:
         APPLICATION_EXTENSION_API_ONLY: YES
         CODE_SIGN_STYLE: Automatic
         CODE_SIGN_ENTITLEMENTS: MuurWidgets/MuurWidgets.entitlements
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphoneos*]": $(MUUR_IOS_WIDGET_ENTITLEMENTS)
+        "CODE_SIGN_ENTITLEMENTS[sdk=iphonesimulator*]": MuurWidgets/MuurWidgets-iOS.entitlements
         "LD_RUNPATH_SEARCH_PATHS[sdk=iphoneos*]": "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
         "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor

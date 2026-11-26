@@ -516,7 +516,8 @@ actor FTPConnection {
         var dataPort: UInt16?
         if supportsEPSV {
             let reply = try await command("EPSV")
-            if reply.code == 229, let open = reply.text.firstIndex(of: "("), let close = reply.text.lastIndex(of: ")") {
+            if reply.code == 229, let open = reply.text.firstIndex(of: "("),
+               let close = reply.text.lastIndex(of: ")"), open < close {
                 let inner = reply.text[reply.text.index(after: open)..<close]
                 let digits = inner.filter(\.isNumber)
                 dataPort = UInt16(digits)
@@ -526,15 +527,18 @@ actor FTPConnection {
         }
         if dataPort == nil {
             let reply = try await require("PASV", [227])
-            guard let open = reply.text.firstIndex(of: "("), let close = reply.text.lastIndex(of: ")") else {
+            guard let open = reply.text.firstIndex(of: "("), let close = reply.text.lastIndex(of: ")"), open < close else {
                 throw MuurError.protocolError("Bad PASV reply")
             }
-            let numbers = reply.text[reply.text.index(after: open)..<close].split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-            guard numbers.count == 6 else { throw MuurError.protocolError("Bad PASV reply") }
+            let fields = reply.text[reply.text.index(after: open)..<close].split(separator: ",", omittingEmptySubsequences: false)
+            let numbers = fields.compactMap { UInt8($0.trimmingCharacters(in: .whitespaces)) }
+            guard fields.count == 6, numbers.count == 6 else {
+                throw MuurError.protocolError("Bad PASV reply")
+            }
             // The advertised address is ignored: servers behind NAT often report private addresses.
-            dataPort = UInt16(numbers[4] * 256 + numbers[5])
+            dataPort = UInt16(numbers[4]) * 256 + UInt16(numbers[5])
         }
-        guard let port = dataPort else { throw MuurError.protocolError("No passive port") }
+        guard let port = dataPort, port > 0 else { throw MuurError.protocolError("No passive port") }
         let stream = try makeStream(host: host, port: port)
         try await stream.open()
         if tlsMode == .explicit { try await stream.startTLS() }
@@ -636,7 +640,8 @@ actor FTPConnection {
 /// for the in-place TLS upgrade).
 ///
 /// `config.host`, `config.port` (21 / 990 implicit), `username` (empty = anonymous) + `password`;
-/// options `useTLS` = "true" and `ftpTLSMode` = "explicit" (default) | "implicit"; `allowInsecureTLS`.
+/// Options: `ftpTLSMode` = "off" | "explicit" | "implicit", and `allowInsecureTLS`.
+/// Configurations without a mode use the legacy `useTLS` flag.
 /// URIs: `ftp(s)://host[:port]/path`.
 public final class FTPSource: MusicSource {
     public let config: SourceConfig
@@ -647,15 +652,23 @@ public final class FTPSource: MusicSource {
     public init(config: SourceConfig, secrets: SourceSecrets) throws {
         guard !config.host.isEmpty else { throw MuurError.notConfigured("FTP server address") }
         self.config = config
-        var mode: FTPTLSMode = .none
-        if config.useTLS {
-            mode = FTPTLSMode(rawValue: config.option(SourceConfig.OptionKey.ftpTLSMode) ?? "explicit") ?? .explicit
-            if mode == .none { mode = .explicit }
-        }
+        let mode = try Self.tlsMode(for: config)
         scheme = mode == .none ? "ftp" : "ftps"
-        let port = UInt16(config.port ?? (mode == .implicit ? 990 : 21))
+        guard let port = UInt16(exactly: config.port ?? (mode == .implicit ? 990 : 21)), port > 0 else {
+            throw MuurError.invalidData("Enter an FTP port from 1 to 65535.")
+        }
         connection = FTPConnection(host: config.host.trimmingCharacters(in: .whitespaces), port: port, user: config.username,
                                    password: secrets.password ?? "", tlsMode: mode, allowInsecureTLS: config.allowInsecureTLS)
+    }
+
+    static func tlsMode(for config: SourceConfig) throws -> FTPTLSMode {
+        switch config.option(SourceConfig.OptionKey.ftpTLSMode) {
+        case "off", "none": return .none
+        case "explicit": return .explicit
+        case "implicit": return .implicit
+        case nil: return config.useTLS ? .explicit : .none
+        default: throw MuurError.invalidData("Unknown FTP encryption mode.")
+        }
     }
 
     private func rootPath() async throws -> String {

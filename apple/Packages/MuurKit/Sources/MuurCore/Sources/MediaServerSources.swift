@@ -32,6 +32,16 @@ public enum MediaServerIdentity {
         guard var components = URLComponents(string: host), components.host != nil else {
             throw MuurError.invalidData("Invalid server address")
         }
+        let scheme = components.scheme?.lowercased()
+        guard scheme == "http" || scheme == "https" else {
+            throw MuurError.invalidData("Enter an HTTP or HTTPS server address.")
+        }
+        if config.useTLS && scheme != "https" {
+            throw MuurError.invalidData("Use an HTTPS address when TLS is enabled.")
+        }
+        if let port = config.port, !(1...65535).contains(port) {
+            throw MuurError.invalidData("Enter a server port from 1 to 65535.")
+        }
         if let port = config.port { components.port = port } else if components.port == nil, !config.useTLS, let port = config.kind.defaultPort,
                                                                       !config.host.contains("://") {
             components.port = port

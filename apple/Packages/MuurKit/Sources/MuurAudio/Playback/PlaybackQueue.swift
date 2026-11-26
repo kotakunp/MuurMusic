@@ -168,6 +168,22 @@ public struct PlaybackQueue: Codable, Sendable, Equatable {
         if items.isEmpty { position = -1 }
     }
 
+    /// Refreshes every occurrence of the same library song without changing the play order.
+    @discardableResult
+    mutating func updateFavorite(from stored: Track, matching libraryKey: String) -> Bool {
+        var changed = false
+        for index in items.indices {
+            let track = items[index].track
+            let sameID = stored.id != nil && track.id == stored.id
+            guard (sameID || track.libraryKey == libraryKey),
+                  track.favorite != stored.favorite || track.id != stored.id else { continue }
+            items[index].track.favorite = stored.favorite
+            items[index].track.id = stored.id
+            changed = true
+        }
+        return changed
+    }
+
     /// Moves entries in play order (drag & drop in the queue UI moves what you see).
     public mutating func moveInPlayOrder(from source: IndexSet, to destination: Int) {
         guard !items.isEmpty else { return }
